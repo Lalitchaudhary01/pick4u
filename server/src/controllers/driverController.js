@@ -1,37 +1,48 @@
 import User from "../models/User.js";
-import logger from "../config/logger.js";
 
-// @desc    Upload KYC documents
-// @route   POST /api/drivers/kyc-upload
-// @access  Private (driver)
-export const kycUploadController = async (req, res) => {
+// Upload KYC Documents
+export const uploadKYC = async (req, res) => {
   try {
-    if (!req.files || req.files.length === 0) {
+    const userId = req.user.id; // authMiddleware se user attach hoga
+    const files = req.files; // uploadMiddleware se attach hoga
+
+    if (!files || files.length === 0) {
       return res.status(400).json({ message: "No files uploaded" });
     }
 
-    // Get uploaded file URLs from Cloudinary
-    const kycUrls = req.files.map((file) => file.path); // multer-cloudinary stores URL in file.path
+    const kycUrls = files.map((file) => file.path); // ya file.url agar Cloudinary
+    const user = await User.findById(userId);
 
-    // Update driverDetails in User schema
-    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: "User not found" });
 
-    if (!user || user.role !== "driver") {
-      return res.status(404).json({ message: "Driver not found" });
-    }
-
-    user.driverDetails.kycDocs = kycUrls;
-    user.driverDetails.kycStatus = "pending"; // reset status on new upload
+    user.driverDetails.kycDocs.push(...kycUrls);
+    user.driverDetails.kycStatus = "pending"; // Reset status after upload
     await user.save();
 
-    logger.info(`Driver ${user._id} uploaded KYC documents`);
+    res.status(200).json({ message: "KYC documents uploaded successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error while uploading KYC" });
+  }
+};
 
-    res.status(200).json({
-      message: "KYC documents uploaded successfully",
-      kycDocs: kycUrls,
-    });
-  } catch (error) {
-    logger.error(error.message);
-    res.status(500).json({ message: "Server Error", error: error.message });
+export const getProfile = async (req, res) => {
+  try {
+    const userId = req.user.id; // authMiddleware se attach hoga
+    const user = await User.findById(userId)
+      .select("-password") // password exclude
+      .lean();
+
+    if (!user) return res.status(404).json({ message: "Driver not found" });
+
+    // Optional: populate recent orders if you have separate Order model
+    // import Order from "../models/Order.js";
+    // const orders = await Order.find({ driverId: userId }).sort({ createdAt: -1 }).limit(5);
+    // user.orders = orders;
+
+    res.status(200).json(user);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error fetching driver profile" });
   }
 };

@@ -1,34 +1,17 @@
 import express from "express";
-import { protect, authorize } from "../middleware/authMiddleware.js";
-import { upload } from "../middleware/uploadMiddleware.js";
-import {
-  kycUploadController,
-  // future controllers:
-  // getDriverOrdersController,
-  // updateAvailabilityController
-} from "../controllers/driverController.js";
+import { getProfile, uploadKYC } from "../controllers/driverController.js";
+import { authMiddleware } from "../middleware/authMiddleware.js";
+import { uploadMiddleware } from "../middleware/uploadMiddleware.js";
 
 const router = express.Router();
 
-// ========================
-// Routes for Drivers
-// ========================
-
-// Upload KYC documents
-// POST /api/drivers/kyc-upload
+// Route: POST /api/driver/upload-kyc
 router.post(
-  "/kyc-upload",
-  protect, // verify JWT
-  authorize("driver"), // allow only drivers
-  upload.array("kycDocs", 5), // max 5 files
-  kycUploadController
+  "/upload-kyc",
+  authMiddleware,
+  uploadMiddleware.array("kycDocs"),
+  uploadKYC
 );
-
-// Future routes examples:
-// GET /api/drivers/orders
-// router.get("/orders", protect, authorize("driver"), getDriverOrdersController);
-
-// PATCH /api/drivers/availability
-// router.patch("/availability", protect, authorize("driver"), updateAvailabilityController);
+router.get("/profile", authMiddleware, getProfile);
 
 export default router;
