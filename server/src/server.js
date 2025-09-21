@@ -3,6 +3,8 @@ import cors from "cors";
 import dotenv from "dotenv";
 import authRoutes from "./routes/authRoutes.js";
 import driverRoutes from "./routes/driverRoutes.js";
+import connectDB from "./config/db.js"; // Import your MongoDB connection function
+
 dotenv.config();
 
 const app = express();
@@ -12,15 +14,17 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
+// Connect to MongoDB
+connectDB(); // ⚠️ Make sure this is called
+
 // Test Route
 app.get("/", (req, res) => {
   res.send("🚀 Pick4U Backend Server is running...");
 });
-//routes
 
+// Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/driver", driverRoutes);
-
 
 // Start Server
 app.listen(PORT, () => {

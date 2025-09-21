@@ -2,7 +2,7 @@ import axios from "axios";
 
 // Base URL from Vite env or fallback
 const API = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "/api/auth",
+  baseURL: "http://localhost:5000/api/auth",
 });
 
 // Register user
