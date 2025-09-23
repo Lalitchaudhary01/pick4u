@@ -1,20 +1,25 @@
 import axios from "axios";
 
 const API = axios.create({
-  baseURL: "http://localhost:5000/api/order",
+  baseURL: "http://localhost:5000/api", // apne backend ka URL daalo
 });
 
-export const createOrder = (data, token) =>
-  API.post("/create", data, { headers: { Authorization: `Bearer ${token}` } });
+// JWT token attach automatically
+API.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
 
-export const trackOrder = (orderId, token) =>
-  API.get(`/track/${orderId}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+// Book new order
+export const createOrder = (data) => API.post("/orders", data);
 
-export const cancelOrder = (orderId, token) =>
-  API.post(
-    `/cancel/${orderId}`,
-    {},
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
+// Get my orders
+export const getMyOrders = () => API.get("/orders");
+
+// Get single order
+export const getOrderById = (id) => API.get(`/orders/${id}`);
+
+// Get order status
+export const getOrderStatus = (id) => API.get(`/orders/${id}/status`);
+

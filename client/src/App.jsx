@@ -20,13 +20,16 @@ import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import Home from "./pages/Home";
 // import BookDelivery from "./pages/public/BookDelivery";
-import TrackOrder from "./pages/public/TrackOrder";
-import Pricing from "./pages/public/Pricing";
-import UserDashboard from "./pages/customer/UserDashboard";
-import Orders from "./pages/customer/Orders";
-import OrderDetail from "./pages/customer/OrderDetail";
-import Profile from "./pages/customer/Profile";
+// import TrackOrder from "./pages/public/TrackOrder";
+// import Pricing from "./pages/public/Pricing";
 import BookDelivery from "./pages/customer/BookDelivery";
+import TrackOrder from "./pages/customer/TrackOrder";
+import OrderHistory from "./pages/customer/OrderHistory";
+import Profile from "./pages/customer/Profile";
+import ProtectedRoute from "./components/ProtectedRoute";
+import Payments from "./pages/customer/Payment";
+import OrderDetail from "./pages/customer/OrderDetail";
+
 // import DriverLogin from "./pages/public/DriverLogin";
 
 function App() {
@@ -39,25 +42,67 @@ function App() {
         <Routes>
           {/* Public Website */}
           <Route path="/" element={<Home />} />
-          <Route path="/book" element={<BookDelivery />} />
-          <Route path="/track" element={<TrackOrder />} />
-          <Route path="/pricing" element={<Pricing />} />
+          {/* <Route path="/book" element={<BookDelivery />} /> */}
+          {/* <Route path="/track" element={<TrackOrder />} />
+          <Route path="/pricing" element={<Pricing />} /> */}
 
           {/* Auth */}
           <Route path="/auth/register" element={<Register />} />
           <Route path="/auth/verify-otp" element={<VerifyOTP />} />
           <Route path="/auth/login" element={<Login />} />
           {/* //custoemr pages */}
-          <Route path="/book" element={<BookDelivery />} />
-          <Route path="/orders" element={<Orders />} />
-          <Route path="/orders/:id" element={<OrderDetail />} />
-          <Route path="/profile" element={<Profile />} />
+          {/* Protected Customer Routes */}
+          <Route
+            path="/customer/book"
+            element={
+              <ProtectedRoute>
+                <BookDelivery />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/customer/track"
+            element={
+              <ProtectedRoute>
+                <TrackOrder />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/customer/orders"
+            element={
+              <ProtectedRoute>
+                <OrderHistory />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/customer/profile"
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/customer/payments"
+            element={
+              <ProtectedRoute>
+                <Payments />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/customer/orders/:id"
+            element={
+              <ProtectedRoute>
+                <OrderDetail />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Driver */}
-          <Route path="/driver/dashboard" element={<Dashboard />} />
-          <Route path="/driver/kyc-upload" element={<KYCUpload />} />
-          {/* <Route path="/driver/earnings" element={<Earnings />} /> */}
-          <Route path="/user/dashboard" element={<UserDashboard />} />
+
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>

@@ -1,180 +1,67 @@
-// import User from "../models/User.js";
-// import bcrypt from "bcryptjs";
-// import jwt from "jsonwebtoken";
-// import { sendOTP } from "../config/twilio.js";
-
-// // Register
-// export const registerController = async (req, res) => {
-//   try {
-//     const { name, email, password, phone, role } = req.body;
-
-//     const existingUser = await User.findOne({ email });
-//     if (existingUser)
-//       return res.status(400).json({ message: "Email already exists" });
-
-//     const hashedPassword = await bcrypt.hash(password, 10);
-
-//     // Generate 6-digit OTP
-//     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-//     const otpExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
-
-//     const user = await User.create({
-//       name,
-//       email,
-//       password: hashedPassword,
-//       phone,
-//       role,
-//       otp,
-//       otpExpiry,
-//       phoneVerified: false,
-//     });
-
-//     // Send OTP via Twilio
-//     await sendOTP(phone, otp);
-
-//     res.status(201).json({
-//       message: "User registered successfully. OTP sent to phone.",
-//       userId: user._id,
-//     });
-//   } catch (error) {
-//     res.status(500).json({ message: "Server Error", error: error.message });
-//   }
-// };
-
-// // Verify OTP
-// export const verifyOTPController = async (req, res) => {
-//   try {
-//     const { userId, otp } = req.body;
-
-//     const user = await User.findById(userId);
-//     if (!user) return res.status(404).json({ message: "User not found" });
-
-//     if (user.otp !== otp || user.otpExpiry < new Date())
-//       return res.status(400).json({ message: "Invalid or expired OTP" });
-
-//     user.phoneVerified = true;
-//     user.otp = null;
-//     user.otpExpiry = null;
-//     await user.save();
-
-//     // Generate JWT
-//     const token = jwt.sign(
-//       { id: user._id, role: user.role },
-//       process.env.JWT_SECRET,
-//       { expiresIn: "7d" }
-//     );
-
-//     res.status(200).json({ message: "Phone verified", token });
-//   } catch (error) {
-//     res.status(500).json({ message: "Server Error", error: error.message });
-//   }
-// };
-
-// // Login
-// export const loginController = async (req, res) => {
-//   try {
-//     const { email, password } = req.body;
-
-//     const user = await User.findOne({ email });
-//     if (!user) return res.status(404).json({ message: "User not found" });
-
-//     const isMatch = await bcrypt.compare(password, user.password);
-//     if (!isMatch)
-//       return res.status(400).json({ message: "Invalid credentials" });
-
-//     if (!user.phoneVerified)
-//       return res.status(400).json({ message: "Phone number not verified" });
-
-//     const token = jwt.sign(
-//       { id: user._id, role: user.role },
-//       process.env.JWT_SECRET,
-//       { expiresIn: "7d" }
-//     );
-
-//     res
-//       .status(200)
-//       .json({ message: "Login successful", token, role: user.role });
-//   } catch (error) {
-//     res.status(500).json({ message: "Server Error", error: error.message });
-//   }
-// };
-
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
-// ==========================
 // Register
-// ==========================
 export const registerController = async (req, res) => {
   try {
-    const { name, email, password, phone, role } = req.body;
+    const { name, email, phone, password, role } = req.body;
 
-    // Check if user already exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser)
-      return res.status(400).json({ message: "Email already exists" });
+    const existing = await User.findOne({ email });
+    if (existing) {
+      return res.status(400).json({ message: "User already exists" });
+    }
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user
     const user = await User.create({
       name,
       email,
-      password: hashedPassword,
       phone,
-      role,
+      password: hashedPassword,
+      role: role || "customer",
     });
 
     res.status(201).json({
       message: "User registered successfully",
-      userId: user._id,
+      user: { id: user._id, name: user.name, email: user.email, role: user.role }
     });
   } catch (error) {
-    res.status(500).json({ message: "Server Error", error: error.message });
+    res.status(500).json({ message: "Registration failed", error: error.message });
   }
 };
 
-// ==========================
 // Login
-// ==========================
 export const loginController = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Find user
     const user = await User.findOne({ email });
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    // Match password
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch)
-      return res.status(400).json({ message: "Invalid credentials" });
+    if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
 
-    // Generate JWT token
     const token = jwt.sign(
       { id: user._id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
 
-    res.status(200).json({
+    res.json({
       message: "Login successful",
       token,
-      role: user.role,
+      user: { id: user._id, name: user.name, email: user.email, role: user.role }
     });
   } catch (error) {
-    res.status(500).json({ message: "Server Error", error: error.message });
+    res.status(500).json({ message: "Login failed", error: error.message });
   }
 };
 
-// server/src/controllers/authController.js
-export const logout = async (req, res) => {
-  try {
-    // Agar blacklist use nahi kar rahe ho toh sirf message bhej do
-    return res.json({ message: "Logged out successfully" });
-  } catch (err) {
-    res.status(500).json({ message: "Logout failed" });
+// Example protected (Customer only)
+export const customerProtected = async (req, res) => {
+  if (req.user.role !== "customer") {
+    return res.status(403).json({ message: "Access denied: Customers only" });
   }
+  res.json({ message: `Welcome, Customer ${req.user.id}` });
 };

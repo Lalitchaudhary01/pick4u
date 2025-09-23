@@ -7,31 +7,21 @@ const paymentSchema = new mongoose.Schema(
       ref: "Order",
       required: true,
     },
-    user: {
+    customer: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
-    amount: {
-      type: Number,
-      required: true,
-    },
     method: {
       type: String,
-      enum: ["card", "upi", "netbanking", "wallet", "cod"],
-      required: true,
+      enum: ["cod", "online"],
+      default: "cod",
     },
+    amount: { type: Number, required: true },
     status: {
       type: String,
-      enum: ["pending", "success", "failed", "refunded"],
+      enum: ["pending", "paid", "failed"],
       default: "pending",
-    },
-    transactionId: {
-      type: String, // Razorpay/Stripe/Paytm txn id
-    },
-    paymentDate: {
-      type: Date,
-      default: Date.now,
     },
   },
   { timestamps: true }

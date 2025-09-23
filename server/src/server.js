@@ -2,8 +2,9 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import authRoutes from "./routes/authRoutes.js";
-import driverRoutes from "./routes/driverRoutes.js";
-import customerRoutes from "./routes/customer.js";
+import userRoutes from "./routes/userRoutes.js";
+import orderRoutes from "./routes/orderRoutes.js";
+import paymentRoutes from "./routes/paymentRoutes.js";
 
 import connectDB from "./config/db.js"; // Import your MongoDB connection function
 
@@ -26,9 +27,9 @@ app.get("/", (req, res) => {
 
 // Routes
 app.use("/api/auth", authRoutes);
-app.use("/api/driver", driverRoutes);
-app.use("/api/customer", customerRoutes);
-
+app.use("/api/user", userRoutes);
+app.use("/api/orders", orderRoutes);
+app.use("/api/payments", paymentRoutes);
 // Start Server
 app.listen(PORT, () => {
   console.log(`✅ Server started on http://localhost:${PORT}`);
