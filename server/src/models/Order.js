@@ -1,56 +1,46 @@
+// src/models/Order.js
 import mongoose from "mongoose";
 
-const orderSchema = new mongoose.Schema(
-  {
-    customer: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User", // user role = "user"
-      required: true,
-    },
-    driver: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User", // user role = "driver"
-    },
-    pickupAddress: {
-      type: String,
-      required: true,
-    },
-    dropoffAddress: {
-      type: String,
-      required: true,
-    },
-    packageDetails: {
-      type: String, // e.g. "Documents", "Electronics"
-    },
-    price: {
-      type: Number,
-      required: true,
-    },
-    paymentStatus: {
-      type: String,
-      enum: ["pending", "paid", "failed"],
-      default: "pending",
-    },
-    orderStatus: {
-      type: String,
-      enum: [
-        "pending", // booked by user, waiting for driver
-        "accepted", // driver accepted
-        "in_progress", // pickup done, on the way
-        "delivered", // order completed
-        "cancelled", // cancelled by user/admin
-      ],
-      default: "pending",
-    },
-    tracking: [
-      {
-        status: String, // e.g. "Order Accepted", "Reached Pickup", etc.
-        location: String,
-        timestamp: { type: Date, default: Date.now },
-      },
-    ],
+const orderSchema = new mongoose.Schema({
+  customer: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
   },
-  { timestamps: true }
-);
+  pickupAddress: { type: String, required: true },
+  dropAddress: { type: String, required: true },
+  package: {
+    weight: { type: Number, required: true },
+    dimensions: { type: String },
+    type: { type: String }, // e.g. Documents, Electronics, Fragile
+  },
+  deliveryType: {
+    type: String,
+    enum: ["instant", "same-day", "standard"],
+    required: true,
+  },
+  fare: { type: Number, required: true },
+  coupon: { type: String },
+  status: {
+    type: String,
+    enum: [
+      "pending",
+      "assigned",
+      "picked_up",
+      "in_transit",
+      "delivered",
+      "cancelled",
+    ],
+    default: "pending",
+  },
+  driver: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  meta: {
+    eta: { type: Date }, // optional estimated delivery time
+    distanceKm: { type: Number },
+  },
+  createdAt: { type: Date, default: Date.now },
+});
 
-export default mongoose.model("Order", orderSchema);
+const Order = mongoose.model("Order", orderSchema);
+
+export default Order; // ✅ ES Module default export

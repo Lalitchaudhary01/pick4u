@@ -3,6 +3,8 @@ import cors from "cors";
 import dotenv from "dotenv";
 import authRoutes from "./routes/authRoutes.js";
 import driverRoutes from "./routes/driverRoutes.js";
+import customerRoutes from "./routes/customer.js";
+
 import connectDB from "./config/db.js"; // Import your MongoDB connection function
 
 dotenv.config();
@@ -25,6 +27,7 @@ app.get("/", (req, res) => {
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/driver", driverRoutes);
+app.use("/api/customer", customerRoutes);
 
 // Start Server
 app.listen(PORT, () => {

@@ -1,3 +1,4 @@
+// src/middleware/auth.js
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 
@@ -19,7 +20,7 @@ export const protect = async (req, res, next) => {
       // Get user from token
       req.user = await User.findById(decoded.id).select("-password");
 
-      next();
+      return next();
     } catch (error) {
       console.error(error);
       return res.status(401).json({ message: "Not authorized, token failed" });

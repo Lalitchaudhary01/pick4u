@@ -10,10 +10,11 @@ export const sendOTP = async (phone, otp) => {
     const message = await client.messages.create({
       body: `Your Pick4U verification code is: ${otp}`,
       from: process.env.TWILIO_PHONE_NUMBER,
-      to: phone,
+      to: phone, // must be in +91XXXXXXXXXX format
     });
     return message;
   } catch (error) {
-    throw new Error("Failed to send OTP");
+    console.error("Twilio Error:", error); // 👈 Console me pura error
+    throw new Error(error.message); // 👈 Postman response me actual Twilio ka message
   }
 };
