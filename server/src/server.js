@@ -1,10 +1,13 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import { Server } from "socket.io"; // socket.io import
 import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
+import orderSocket from "./sockets/orderSocket.js"; // socket logic import
+import driverRoutes from "./routes/driverRoutes.js";
 
 import connectDB from "./config/db.js"; // Import your MongoDB connection function
 
@@ -30,7 +33,17 @@ app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/payments", paymentRoutes);
-// Start Server
-app.listen(PORT, () => {
+app.use("/api/driver", driverRoutes);
+
+// ✅ Server + Socket.IO setup ek hi jagah
+const server = app.listen(PORT, () => {
   console.log(`✅ Server started on http://localhost:${PORT}`);
 });
+
+// ✅ Attach socket.io
+const io = new Server(server, {
+  cors: { origin: "*" },
+});
+
+// ✅ Call order socket
+orderSocket(io);

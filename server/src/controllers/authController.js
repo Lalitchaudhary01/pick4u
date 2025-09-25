@@ -7,23 +7,29 @@ export const registerController = async (req, res) => {
   try {
     const { name, email, phone, password, role } = req.body;
 
+    // check if user already exists
     const existing = await User.findOne({ email });
     if (existing) {
-      return res.status(400).json({ message: "User already exists" });
+      return res
+        .status(400)
+        .json({ success: false, message: "User already exists" });
     }
 
+    // hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // create new user
     const user = await User.create({
       name,
       email,
       phone,
       password: hashedPassword,
-      role: role || "customer",
+      role: role || "customer", // default role
     });
 
     res.status(201).json({
-      message: "User registered successfully",
+      success: true,
+      message: `${user.role} registered successfully`,
       user: {
         id: user._id,
         name: user.name,
@@ -32,9 +38,11 @@ export const registerController = async (req, res) => {
       },
     });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Registration failed", error: error.message });
+    res.status(500).json({
+      success: false,
+      message: "Registration failed",
+      error: error.message,
+    });
   }
 };
 
@@ -62,7 +70,7 @@ export const loginController = async (req, res) => {
     );
 
     res.json({
-      success: true, // ✅ added
+      success: true,
       message: "Login successful",
       token,
       user: {
@@ -79,7 +87,7 @@ export const loginController = async (req, res) => {
   }
 };
 
-// Example protected (Customer only)
+// Example protected route (customer only)
 export const customerProtected = async (req, res) => {
   if (req.user.role !== "customer") {
     return res.status(403).json({ message: "Access denied: Customers only" });

@@ -1,20 +1,29 @@
 import express from "express";
-import { getProfile, uploadKYC } from "../controllers/driverController.js";
 import { protect, authorize } from "../middleware/authMiddleware.js";
-import { upload } from "../middleware/uploadMiddleware.js";
+import multer from "multer";
+import {
+  kycUploadController,
+  getDriverProfile,
+  getDriverEarnings,
+} from "../controllers/driverController.js";
 
 const router = express.Router();
 
-// Route: POST /api/driver/upload-kyc
+// Multer setup for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, "uploads/kyc/"),
+  filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname),
+});
+const upload = multer({ storage });
+
 router.post(
-  "/upload-kyc",
+  "/kyc-upload",
   protect,
   authorize("driver"),
-  upload.array("kycDocs", 5), // max 5 files
-  uploadKYC
+  upload.array("kycDocs", 5),
+  kycUploadController
 );
-
-// Route: GET /api/driver/profile
-router.get("/profile", protect, authorize("driver"), getProfile);
+router.get("/profile", protect, authorize("driver"), getDriverProfile);
+router.get("/earnings", protect, authorize("driver"), getDriverEarnings);
 
 export default router;

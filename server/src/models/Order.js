@@ -16,23 +16,34 @@ const orderSchema = new mongoose.Schema(
       default: "standard",
     },
     fare: { type: Number, required: true },
+
     status: {
       type: String,
       enum: [
-        "pending",
-        "assigned",
-        "picked",
-        "in-transit",
-        "delivered",
-        "cancelled",
+        "pending", // customer created order
+        "assigned", // admin/auto assigned driver
+        "accepted", // driver accepted
+        "rejected", // driver rejected
+        "picked", // driver picked package
+        "in-transit", // driver on way
+        "delivered", // order completed
+        "cancelled", // customer/admin cancelled
       ],
       default: "pending",
     },
+
     assignedDriver: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
+
     couponCode: { type: String },
+
+    paymentStatus: {
+      type: String,
+      enum: ["pending", "paid", "failed"],
+      default: "pending",
+    },
   },
   { timestamps: true }
 );

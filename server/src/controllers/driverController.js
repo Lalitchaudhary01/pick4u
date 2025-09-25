@@ -1,48 +1,54 @@
-import User from "../models/User.js";
+import Driver from "../models/Driver.js";
 
-// Upload KYC Documents
-export const uploadKYC = async (req, res) => {
+// Upload KYC
+export const kycUploadController = async (req, res) => {
   try {
-    const userId = req.user.id; // authMiddleware se user attach hoga
-    const files = req.files; // uploadMiddleware se attach hoga
+    const files = req.files.map((file) => file.path);
 
-    if (!files || files.length === 0) {
-      return res.status(400).json({ message: "No files uploaded" });
+    let driver = await Driver.findOne({ user: req.user.id });
+    if (!driver) {
+      driver = new Driver({
+        user: req.user.id,
+        kycDocs: files,
+        kycStatus: "PENDING",
+      });
+    } else {
+      driver.kycDocs = files;
+      driver.kycStatus = "PENDING";
     }
 
-    const kycUrls = files.map((file) => file.path); // ya file.url agar Cloudinary
-    const user = await User.findById(userId);
-
-    if (!user) return res.status(404).json({ message: "User not found" });
-
-    user.driverDetails.kycDocs.push(...kycUrls);
-    user.driverDetails.kycStatus = "pending"; // Reset status after upload
-    await user.save();
-
-    res.status(200).json({ message: "KYC documents uploaded successfully" });
+    await driver.save();
+    res.json({ message: "KYC uploaded successfully", driver });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error while uploading KYC" });
+    res.status(500).json({ message: "KYC upload failed", error: err.message });
   }
 };
 
-export const getProfile = async (req, res) => {
+// Get driver profile
+export const getDriverProfile = async (req, res) => {
   try {
-    const userId = req.user.id; // authMiddleware se attach hoga
-    const user = await User.findById(userId)
-      .select("-password") // password exclude
-      .lean();
-
-    if (!user) return res.status(404).json({ message: "Driver not found" });
-
-    // Optional: populate recent orders if you have separate Order model
-    // import Order from "../models/Order.js";
-    // const orders = await Order.find({ driverId: userId }).sort({ createdAt: -1 }).limit(5);
-    // user.orders = orders;
-
-    res.status(200).json(user);
+    const driver = await Driver.findOne({ user: req.user.id }).populate(
+      "user",
+      "name email phone role"
+    );
+    if (!driver) return res.status(404).json({ message: "Driver not found" });
+    res.json(driver);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error fetching driver profile" });
+    res
+      .status(500)
+      .json({ message: "Failed to fetch driver profile", error: err.message });
+  }
+};
+
+// Get earnings
+export const getDriverEarnings = async (req, res) => {
+  try {
+    const driver = await Driver.findOne({ user: req.user.id });
+    if (!driver) return res.status(404).json({ message: "Driver not found" });
+    res.json({ total: driver.earnings });
+  } catch (err) {
+    res
+      .status(500)
+      .json({ message: "Failed to fetch earnings", error: err.message });
   }
 };

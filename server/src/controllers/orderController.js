@@ -143,3 +143,66 @@ export const updateOrderStatus = async (req, res) => {
       .json({ message: "Error updating status", error: error.message });
   }
 };
+
+// controllers/orderController.js
+
+// Admin assigns driver
+export const assignDriver = async (req, res) => {
+  try {
+    const { driverId } = req.body;
+    const order = await Order.findById(req.params.id);
+
+    if (!order) return res.status(404).json({ message: "Order not found" });
+
+    order.assignedDriver = driverId;
+    order.status = "assigned";
+    await order.save();
+
+    res.json({ success: true, message: "Driver assigned", order });
+  } catch (err) {
+    res
+      .status(500)
+      .json({ message: "Error assigning driver", error: err.message });
+  }
+};
+
+// Driver accepts
+export const acceptOrder = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+
+    if (!order) return res.status(404).json({ message: "Order not found" });
+
+    if (String(order.assignedDriver) !== String(req.user._id)) {
+      return res.status(403).json({ message: "Not your order" });
+    }
+
+    order.status = "accepted";
+    await order.save();
+
+    res.json({ success: true, message: "Order accepted", order });
+  } catch (err) {
+    res.status(500).json({ message: "Error", error: err.message });
+  }
+};
+
+// Driver rejects
+export const rejectOrder = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+
+    if (!order) return res.status(404).json({ message: "Order not found" });
+
+    if (String(order.assignedDriver) !== String(req.user._id)) {
+      return res.status(403).json({ message: "Not your order" });
+    }
+
+    order.status = "rejected";
+    order.assignedDriver = null; // remove driver
+    await order.save();
+
+    res.json({ success: true, message: "Order rejected", order });
+  } catch (err) {
+    res.status(500).json({ message: "Error", error: err.message });
+  }
+};

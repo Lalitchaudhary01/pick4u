@@ -276,7 +276,7 @@ const Register = () => {
     email: "",
     password: "",
     phone: "",
-    role: "user",
+    role: "customer",
   });
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -289,7 +289,7 @@ const Register = () => {
 
   const getRoleDetails = (role) => {
     switch (role) {
-      case "user":
+      case "customer":
         return {
           title: "Customer",
           subtitle: "Book rides & deliveries",
@@ -374,7 +374,7 @@ const Register = () => {
           email: "",
           password: "",
           phone: "",
-          role: "user",
+          role: "customer",
         });
 
         // Optional: Redirect to OTP verification or login page
@@ -622,7 +622,7 @@ const Register = () => {
                 >
                   <div className="p-4 bg-white border-t border-gray-100">
                     <div className="space-y-3">
-                      {["user", "driver", "admin"].map((role) => {
+                      {["customer", "driver", "admin"].map((role) => {
                         const roleDetails = getRoleDetails(role);
                         const isSelected = formData.role === role;
 

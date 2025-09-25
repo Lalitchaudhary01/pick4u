@@ -1,49 +1,43 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { uploadKYC } from "../../api/driverApi"; // Axios wrapper
+import React, { useState } from "react";
+import { uploadKYC } from "../../api/driverApi";
 
 const KYCUpload = () => {
-  const navigate = useNavigate();
   const [files, setFiles] = useState([]);
   const [message, setMessage] = useState("");
-
-  // JWT + Role check
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    const role = localStorage.getItem("role");
-    if (!token || role !== "driver") {
-      navigate("/auth/login");
-    }
-  }, [navigate]);
+  const token = localStorage.getItem("token");
 
   const handleFileChange = (e) => {
-    setFiles(e.target.files);
+    setFiles([...e.target.files]);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (files.length === 0) {
-      setMessage("Please select files to upload");
-      return;
-    }
-
     try {
-      const token = localStorage.getItem("token");
-      const res = await uploadKYC(files, token); // API wrapper
-      setMessage(res.message || "Files uploaded successfully");
+      await uploadKYC(files, token);
+      setMessage("✅ KYC uploaded successfully. Waiting for approval.");
     } catch (err) {
-      setMessage(err.response?.data?.message || "Error uploading files");
+      setMessage("❌ Failed to upload KYC.");
     }
   };
 
   return (
-    <div>
-      <h2>Upload KYC Documents</h2>
+    <div className="max-w-lg mx-auto bg-white shadow-lg rounded-2xl p-6 mt-10">
+      <h2 className="text-2xl font-bold mb-4">Upload KYC Documents</h2>
       <form onSubmit={handleSubmit}>
-        <input type="file" multiple onChange={handleFileChange} />
-        <button type="submit">Upload</button>
+        <input
+          type="file"
+          multiple
+          onChange={handleFileChange}
+          className="border p-2 w-full mb-4"
+        />
+        <button
+          type="submit"
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg"
+        >
+          Upload
+        </button>
       </form>
-      {message && <p>{message}</p>}
+      {message && <p className="mt-4 text-sm">{message}</p>}
     </div>
   );
 };
