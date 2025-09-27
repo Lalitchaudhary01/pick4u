@@ -1,7 +1,8 @@
+// controllers/orderController.js
 import Order from "../models/Order.js";
 import { getDistanceInKm } from "../services/mapService.js";
 
-// Updated Fare Calculation
+// ------------------- Fare Calculation -------------------
 const calculateFare = (distance, weight, deliveryType) => {
   let base = 50; // base fare
   let perKm = 8;
@@ -14,7 +15,7 @@ const calculateFare = (distance, weight, deliveryType) => {
   return Math.round(total);
 };
 
-// Create Order with Google Maps Distance
+// ------------------- Create Order -------------------
 export const createOrder = async (req, res) => {
   try {
     const {
@@ -25,26 +26,44 @@ export const createOrder = async (req, res) => {
       couponCode,
     } = req.body;
 
+    // Debug logs
+    console.log("👉 Incoming Order Body:", req.body);
+    console.log("👉 Authenticated User:", req.user);
+
     if (!pickupAddress || !dropAddress || !packageWeight) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
+    // Convert weight to number (avoid string bugs)
+    const weightNum = parseFloat(packageWeight);
+
     // Get distance from Google Maps
-    const distance = await getDistanceInKm(pickupAddress, dropAddress);
-    if (!distance) {
-      return res.status(500).json({ message: "Could not calculate distance" });
+    let distance = null;
+    try {
+      distance = await getDistanceInKm(pickupAddress, dropAddress);
+    } catch (mapErr) {
+      console.error("❌ Google Maps API failed:", mapErr.message);
     }
 
-    const fare = calculateFare(distance, packageWeight, deliveryType);
+    console.log("👉 Calculated Distance:", distance);
+
+    // Fallback if Google Maps fails
+    if (!distance || isNaN(distance)) {
+      console.warn("⚠️ Using fallback distance (10 km)");
+      distance = 10;
+    }
+
+    const fare = calculateFare(distance, weightNum, deliveryType);
 
     const order = await Order.create({
-      customer: req.user.id,
+      customer: req.user?.id, // ensure user is attached by protect middleware
       pickupAddress,
       dropAddress,
-      packageWeight,
+      packageWeight: weightNum,
       deliveryType,
       couponCode,
       fare,
+      distance, // store distance in DB
     });
 
     res.status(201).json({
@@ -53,13 +72,16 @@ export const createOrder = async (req, res) => {
       distance: `${distance.toFixed(2)} km`,
     });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Order creation failed", error: error.message });
+    console.error("❌ Order creation failed:", error);
+    res.status(500).json({
+      message: "Order creation failed",
+      error: error.message,
+      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
+    });
   }
 };
 
-// Get My Orders
+// ------------------- Get My Orders -------------------
 export const getMyOrders = async (req, res) => {
   try {
     const orders = await Order.find({ customer: req.user.id }).sort({
@@ -67,13 +89,14 @@ export const getMyOrders = async (req, res) => {
     });
     res.json(orders);
   } catch (error) {
+    console.error("❌ Error fetching orders:", error);
     res
       .status(500)
       .json({ message: "Error fetching orders", error: error.message });
   }
 };
 
-// Get Order By ID
+// ------------------- Get Order By ID -------------------
 export const getOrderById = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id).populate(
@@ -83,19 +106,19 @@ export const getOrderById = async (req, res) => {
     if (!order) return res.status(404).json({ message: "Order not found" });
     res.json(order);
   } catch (error) {
+    console.error("❌ Error fetching order:", error);
     res
       .status(500)
       .json({ message: "Error fetching order", error: error.message });
   }
 };
 
-// Get Order Status by ID
+// ------------------- Get Order Status -------------------
 export const getOrderStatus = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ message: "Order not found" });
 
-    // agar customer hai to check karo ki order uska hi hai
     if (
       req.user.role === "customer" &&
       order.customer.toString() !== req.user.id
@@ -107,20 +130,20 @@ export const getOrderStatus = async (req, res) => {
 
     res.json({ orderId: order._id, status: order.status });
   } catch (error) {
+    console.error("❌ Error fetching status:", error);
     res
       .status(500)
       .json({ message: "Error fetching status", error: error.message });
   }
 };
 
-// Update Order Status (driver/admin use only)
+// ------------------- Update Order Status -------------------
 export const updateOrderStatus = async (req, res) => {
   try {
     const { status } = req.body;
     const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ message: "Order not found" });
 
-    // only driver assigned to this order OR admin can update
     if (
       req.user.role === "driver" &&
       order.assignedDriver?.toString() !== req.user.id
@@ -138,15 +161,14 @@ export const updateOrderStatus = async (req, res) => {
 
     res.json({ message: "Order status updated", order });
   } catch (error) {
+    console.error("❌ Error updating status:", error);
     res
       .status(500)
       .json({ message: "Error updating status", error: error.message });
   }
 };
 
-// controllers/orderController.js
-
-// Admin assigns driver
+// ------------------- Assign Driver (Admin only) -------------------
 export const assignDriver = async (req, res) => {
   try {
     const { driverId } = req.body;
@@ -159,14 +181,15 @@ export const assignDriver = async (req, res) => {
     await order.save();
 
     res.json({ success: true, message: "Driver assigned", order });
-  } catch (err) {
+  } catch (error) {
+    console.error("❌ Error assigning driver:", error);
     res
       .status(500)
-      .json({ message: "Error assigning driver", error: err.message });
+      .json({ message: "Error assigning driver", error: error.message });
   }
 };
 
-// Driver accepts
+// ------------------- Driver Accepts -------------------
 export const acceptOrder = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id);
@@ -181,12 +204,15 @@ export const acceptOrder = async (req, res) => {
     await order.save();
 
     res.json({ success: true, message: "Order accepted", order });
-  } catch (err) {
-    res.status(500).json({ message: "Error", error: err.message });
+  } catch (error) {
+    console.error("❌ Error accepting order:", error);
+    res
+      .status(500)
+      .json({ message: "Error accepting order", error: error.message });
   }
 };
 
-// Driver rejects
+// ------------------- Driver Rejects -------------------
 export const rejectOrder = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id);
@@ -198,11 +224,14 @@ export const rejectOrder = async (req, res) => {
     }
 
     order.status = "rejected";
-    order.assignedDriver = null; // remove driver
+    order.assignedDriver = null;
     await order.save();
 
     res.json({ success: true, message: "Order rejected", order });
-  } catch (err) {
-    res.status(500).json({ message: "Error", error: err.message });
+  } catch (error) {
+    console.error("❌ Error rejecting order:", error);
+    res
+      .status(500)
+      .json({ message: "Error rejecting order", error: error.message });
   }
 };
