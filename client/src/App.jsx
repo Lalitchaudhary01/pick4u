@@ -30,6 +30,14 @@ import Unauthorized from "./components/Unauthorized"; // new Unauthorized page
 import DriverProfile from "./pages/driver/Profile";
 import Earnings from "./pages/driver/Earnings";
 import Dashboard from "./pages/driver/Dashboard";
+// Admin Pages
+import AdminLayout from "./pages/admin/AdminLayout";
+import Dashboard from "./pages/admin/Dashboard";
+import Earnings from "./pages/admin/Earnings";
+import Users from "./pages/admin/User";
+import Drivers from "./pages/admin/Driver";
+import Orders from "./pages/admin/Order";
+import Reports from "./pages/admin/Reports";
 
 function App() {
   return (
@@ -99,17 +107,17 @@ function App() {
           />
 
           {/* ================= ADMIN ROUTES ================= */}
-          {/* <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
-            <Route path="/admin/dashboard" element={<h1>Admin Dashboard</h1>} />
-            <Route
-              path="/admin/manage-orders"
-              element={<h1>Manage Orders</h1>}
-            />
-            <Route
-              path="/admin/manage-drivers"
-              element={<h1>Manage Drivers</h1>}
-            />
-          </Route> */}
+          {/* ================= ADMIN ROUTES ================= */}
+          <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
+            <Route element={<AdminLayout />}>
+              <Route path="/admin/dashboard" element={<Dashboard />} />
+              <Route path="/admin/users" element={<Users />} />
+              <Route path="/admin/drivers" element={<Drivers />} />
+              <Route path="/admin/orders" element={<Orders />} />
+              <Route path="/admin/earnings" element={<Earnings />} />
+              <Route path="/admin/reports" element={<Reports />} />
+            </Route>
+          </Route>
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" />} />

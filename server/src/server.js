@@ -8,6 +8,7 @@ import orderRoutes from "./routes/orderRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
 import orderSocket from "./sockets/orderSocket.js"; // socket logic import
 import driverRoutes from "./routes/driverRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
 
 import connectDB from "./config/db.js"; // Import your MongoDB connection function
 
@@ -34,6 +35,7 @@ app.use("/api/user", userRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/driver", driverRoutes);
+app.use("/api/admin", adminRoutes);
 
 // ✅ Server + Socket.IO setup ek hi jagah
 const server = app.listen(PORT, () => {
