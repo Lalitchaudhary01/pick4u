@@ -26,58 +26,40 @@ export const createOrder = async (req, res) => {
       couponCode,
     } = req.body;
 
-    // Debug logs
-    console.log("👉 Incoming Order Body:", req.body);
-    console.log("👉 Authenticated User:", req.user);
-
     if (!pickupAddress || !dropAddress || !packageWeight) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    // Convert weight to number (avoid string bugs)
     const weightNum = parseFloat(packageWeight);
 
-    // Get distance from Google Maps
     let distance = null;
     try {
       distance = await getDistanceInKm(pickupAddress, dropAddress);
-    } catch (mapErr) {
-      console.error("❌ Google Maps API failed:", mapErr.message);
-    }
-
-    console.log("👉 Calculated Distance:", distance);
-
-    // Fallback if Google Maps fails
-    if (!distance || isNaN(distance)) {
-      console.warn("⚠️ Using fallback distance (10 km)");
+    } catch (err) {
+      console.warn("Google Maps API failed, fallback to 10km");
       distance = 10;
     }
 
     const fare = calculateFare(distance, weightNum, deliveryType);
 
     const order = await Order.create({
-      customer: req.user?.id, // ensure user is attached by protect middleware
+      customer: req.user?.id,
       pickupAddress,
       dropAddress,
       packageWeight: weightNum,
       deliveryType,
       couponCode,
       fare,
-      distance, // store distance in DB
+      distance,
+      status: "pending",
     });
 
-    res.status(201).json({
-      message: "Order created successfully",
-      order,
-      distance: `${distance.toFixed(2)} km`,
-    });
+    res.status(201).json({ message: "Order created", order });
   } catch (error) {
-    console.error("❌ Order creation failed:", error);
-    res.status(500).json({
-      message: "Order creation failed",
-      error: error.message,
-      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
-    });
+    console.error("createOrder:", error);
+    res
+      .status(500)
+      .json({ message: "Error creating order", error: error.message });
   }
 };
 
@@ -89,7 +71,7 @@ export const getMyOrders = async (req, res) => {
     });
     res.json(orders);
   } catch (error) {
-    console.error("❌ Error fetching orders:", error);
+    console.error("getMyOrders:", error);
     res
       .status(500)
       .json({ message: "Error fetching orders", error: error.message });
@@ -106,7 +88,7 @@ export const getOrderById = async (req, res) => {
     if (!order) return res.status(404).json({ message: "Order not found" });
     res.json(order);
   } catch (error) {
-    console.error("❌ Error fetching order:", error);
+    console.error("getOrderById:", error);
     res
       .status(500)
       .json({ message: "Error fetching order", error: error.message });
@@ -130,7 +112,7 @@ export const getOrderStatus = async (req, res) => {
 
     res.json({ orderId: order._id, status: order.status });
   } catch (error) {
-    console.error("❌ Error fetching status:", error);
+    console.error("getOrderStatus:", error);
     res
       .status(500)
       .json({ message: "Error fetching status", error: error.message });
@@ -159,9 +141,18 @@ export const updateOrderStatus = async (req, res) => {
     order.status = status;
     await order.save();
 
+    // Notify customer via socket
+    const io = req.app.get("io");
+    if (io) {
+      io.to(`user_${order.customer}`).emit("order-status-update", {
+        orderId: order._id,
+        status,
+      });
+    }
+
     res.json({ message: "Order status updated", order });
   } catch (error) {
-    console.error("❌ Error updating status:", error);
+    console.error("updateOrderStatus:", error);
     res
       .status(500)
       .json({ message: "Error updating status", error: error.message });
@@ -173,16 +164,25 @@ export const assignDriver = async (req, res) => {
   try {
     const { driverId } = req.body;
     const order = await Order.findById(req.params.id);
-
     if (!order) return res.status(404).json({ message: "Order not found" });
 
     order.assignedDriver = driverId;
     order.status = "assigned";
     await order.save();
 
+    // Emit to driver
+    const io = req.app.get("io");
+    if (io && driverId) {
+      io.to(`driver_${driverId}`).emit("new-order", {
+        orderId: order._id,
+        pickup: order.pickupAddress,
+        drop: order.dropAddress,
+      });
+    }
+
     res.json({ success: true, message: "Driver assigned", order });
   } catch (error) {
-    console.error("❌ Error assigning driver:", error);
+    console.error("assignDriver:", error);
     res
       .status(500)
       .json({ message: "Error assigning driver", error: error.message });
@@ -193,7 +193,6 @@ export const assignDriver = async (req, res) => {
 export const acceptOrder = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id);
-
     if (!order) return res.status(404).json({ message: "Order not found" });
 
     if (String(order.assignedDriver) !== String(req.user._id)) {
@@ -203,9 +202,20 @@ export const acceptOrder = async (req, res) => {
     order.status = "accepted";
     await order.save();
 
+    const io = req.app.get("io");
+    if (io) {
+      io.to(`user_${order.customer}`).emit("order-status-update", {
+        orderId: order._id,
+        status: "accepted",
+      });
+      io.to(`driver_${req.user._id}`).emit("order-accepted", {
+        orderId: order._id,
+      });
+    }
+
     res.json({ success: true, message: "Order accepted", order });
   } catch (error) {
-    console.error("❌ Error accepting order:", error);
+    console.error("acceptOrder:", error);
     res
       .status(500)
       .json({ message: "Error accepting order", error: error.message });
@@ -216,7 +226,6 @@ export const acceptOrder = async (req, res) => {
 export const rejectOrder = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id);
-
     if (!order) return res.status(404).json({ message: "Order not found" });
 
     if (String(order.assignedDriver) !== String(req.user._id)) {
@@ -227,11 +236,51 @@ export const rejectOrder = async (req, res) => {
     order.assignedDriver = null;
     await order.save();
 
+    const io = req.app.get("io");
+    if (io) {
+      io.to(`user_${order.customer}`).emit("order-status-update", {
+        orderId: order._id,
+        status: "rejected",
+      });
+    }
+
     res.json({ success: true, message: "Order rejected", order });
   } catch (error) {
-    console.error("❌ Error rejecting order:", error);
+    console.error("rejectOrder:", error);
     res
       .status(500)
       .json({ message: "Error rejecting order", error: error.message });
+  }
+};
+
+// ------------------- Driver Updates Live Location -------------------
+export const updateDriverLocation = async (req, res) => {
+  try {
+    const { lat, lng } = req.body;
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ message: "Order not found" });
+
+    if (String(order.assignedDriver) !== String(req.user._id)) {
+      return res.status(403).json({ message: "Not your order" });
+    }
+
+    order.driverLocation = { lat, lng };
+    await order.save();
+
+    const io = req.app.get("io");
+    if (io) {
+      io.to(`user_${order.customer}`).emit("driver-location-update", {
+        orderId: order._id,
+        lat,
+        lng,
+      });
+    }
+
+    res.json({ success: true, message: "Driver location updated" });
+  } catch (error) {
+    console.error("updateDriverLocation:", error);
+    res
+      .status(500)
+      .json({ message: "Error updating location", error: error.message });
   }
 };
