@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { getReports } from "@/api/adminApi";
+import { getReports } from "../../api/adminApi";
 
 export default function Reports() {
   const [reports, setReports] = useState([]);

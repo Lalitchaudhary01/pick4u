@@ -1,122 +1,135 @@
+// src/components/DriverDashboard.jsx
 import React, { useEffect, useState } from "react";
-import {
-  getAssignedJobs,
-  acceptJob,
-  declineJob,
-  getDriverEarnings,
-} from "../../api/driverApi";
-import useSocket from "../../hooks/useSocket"; // ✅ default import
+import { getAssignedJobs, acceptJob, declineJob } from "../../api/driverApi";
+import { io } from "socket.io-client";
+import { CheckCircle, XCircle } from "lucide-react";
 
-export default function Dashboard() {
+const socket = io("http://localhost:5000"); // change if different
+
+export default function DriverDashboard() {
   const [jobs, setJobs] = useState([]);
-  const [earnings, setEarnings] = useState(0);
-  const token = localStorage.getItem("driverToken");
+  const [loading, setLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(null);
 
-  // Load jobs from API
-  const loadJobs = async () => {
+  // Fetch assigned jobs
+  const fetchJobs = async () => {
+    setLoading(true);
     try {
-      const res = await getAssignedJobs(token);
+      const res = await getAssignedJobs();
       setJobs(res.data);
     } catch (err) {
       console.error(err);
+    } finally {
+      setLoading(false);
     }
   };
-
-  // Load earnings from API
-  const loadEarnings = async () => {
-    try {
-      const res = await getDriverEarnings(token);
-      setEarnings(res.data.totalEarnings || 0);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleAccept = async (orderId) => {
-    await acceptJob(orderId, token);
-    loadJobs();
-    loadEarnings();
-  };
-
-  const handleDecline = async (orderId) => {
-    await declineJob(orderId, token);
-    loadJobs();
-  };
-
-  // Real-time socket updates
-  useSocket("http://localhost:5000", (socket) => {
-    socket.on("new-order", (data) => {
-      alert("New order assigned!");
-      loadJobs();
-    });
-
-    socket.on("order-updated", (data) => {
-      setJobs((prev) =>
-        prev.map((job) =>
-          job._id === data._id ? { ...job, status: data.status } : job
-        )
-      );
-    });
-  });
 
   useEffect(() => {
-    loadJobs();
-    loadEarnings();
+    fetchJobs();
+
+    // Listen to new orders in real-time
+    socket.on("new-order", (order) => {
+      setJobs((prev) => [order, ...prev]);
+      alert(`New Order Assigned: ${order.orderId}`);
+    });
+
+    return () => {
+      socket.off("new-order");
+    };
   }, []);
 
+  const handleAccept = async (id) => {
+    setActionLoading(id);
+    try {
+      await acceptJob(id);
+      setJobs((prev) =>
+        prev.map((job) =>
+          job._id === id ? { ...job, status: "accepted" } : job
+        )
+      );
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDecline = async (id) => {
+    setActionLoading(id);
+    try {
+      await declineJob(id);
+      setJobs((prev) =>
+        prev.map((job) =>
+          job._id === id ? { ...job, status: "rejected" } : job
+        )
+      );
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Driver Dashboard</h1>
-      <p className="mb-4 font-semibold">Total Earnings: ₹{earnings}</p>
-      {jobs.length === 0 ? (
-        <p>No assigned jobs currently.</p>
+    <div className="max-w-5xl mx-auto p-6">
+      <h1 className="text-3xl font-bold mb-6">Driver Dashboard</h1>
+      {loading ? (
+        <p>Loading assigned jobs...</p>
+      ) : jobs.length === 0 ? (
+        <p>No assigned jobs yet.</p>
       ) : (
-        <ul className="space-y-4">
+        <div className="space-y-4">
           {jobs.map((job) => (
-            <li
+            <div
               key={job._id}
-              className="p-4 border rounded shadow flex justify-between items-center"
+              className="bg-white shadow-lg rounded-2xl p-6 flex justify-between items-center"
             >
               <div>
-                <p>
-                  <strong>Order ID:</strong> {job._id}
+                <p className="font-semibold text-gray-900">
+                  Order ID: {job._id}
                 </p>
-                <p>
-                  <strong>Pickup:</strong> {job.pickupAddress}
+                <p className="text-gray-600">
+                  Pickup: {job.pickupAddress} → Drop: {job.dropAddress}
                 </p>
-                <p>
-                  <strong>Drop:</strong> {job.dropAddress}
-                </p>
-                <p>
-                  <strong>Status:</strong> {job.status}
-                </p>
+                <p className="text-gray-600">Weight: {job.packageWeight} kg</p>
+                <p className="text-gray-600">Status: {job.status}</p>
               </div>
-              <div className="flex gap-2">
-                {job.status === "Assigned" && (
+              <div className="flex space-x-2">
+                {job.status === "assigned" && (
                   <>
                     <button
                       onClick={() => handleAccept(job._id)}
-                      className="bg-green-600 text-white px-3 py-1 rounded"
+                      disabled={actionLoading === job._id}
+                      className="flex items-center px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700"
                     >
+                      <CheckCircle className="w-5 h-5 mr-2" />
                       Accept
                     </button>
                     <button
                       onClick={() => handleDecline(job._id)}
-                      className="bg-red-600 text-white px-3 py-1 rounded"
+                      disabled={actionLoading === job._id}
+                      className="flex items-center px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700"
                     >
-                      Decline
+                      <XCircle className="w-5 h-5 mr-2" />
+                      Reject
                     </button>
                   </>
                 )}
-                {job.status !== "Assigned" && (
-                  <span className="text-blue-600 font-semibold">
-                    {job.status}
+                {job.status !== "assigned" && (
+                  <span
+                    className={`px-4 py-2 rounded-xl font-semibold ${
+                      job.status === "accepted"
+                        ? "bg-green-100 text-green-800"
+                        : "bg-red-100 text-red-800"
+                    }`}
+                  >
+                    {job.status.toUpperCase()}
                   </span>
                 )}
               </div>
-            </li>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
     </div>
   );

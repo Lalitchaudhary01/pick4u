@@ -5,15 +5,12 @@ import {
   MapPin,
   Package,
   Truck,
-  CreditCard,
   Clock,
   ArrowRight,
   CheckCircle,
-  AlertCircle,
   Navigation,
   Zap,
   Calendar,
-  DollarSign,
   Banknote,
   Smartphone,
 } from "lucide-react";
@@ -27,7 +24,7 @@ export default function BookDelivery() {
   });
   const [response, setResponse] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [paymentLoading, setPaymentLoading] = useState("");
+  const [paymentLoading, setPaymentLoading] = useState(false);
 
   const deliveryTypes = [
     {
@@ -95,34 +92,24 @@ export default function BookDelivery() {
     createOrder(form)
       .then((res) => {
         setResponse(res.data.order);
+        setPaymentLoading(true);
+
+        // ✅ Auto COD payment
+        createPayment({ orderId: res.data.order._id, method: "cod" })
+          .then(() => {
+            alert("Cash on Delivery selected. Pay on delivery.");
+          })
+          .catch((err) => {
+            console.error("Payment error:", err);
+            alert("Error selecting COD");
+          })
+          .finally(() => setPaymentLoading(false));
       })
       .catch((err) => {
         console.error("Order creation error:", err);
         alert(err.response?.data?.message || "Error creating order");
       })
-      .finally(() => {
-        setIsLoading(false);
-      });
-  };
-
-  const handlePayment = (method) => {
-    setPaymentLoading(method);
-
-    createPayment({ orderId: response._id, method })
-      .then(() => {
-        if (method === "cod") {
-          alert("COD selected. Pay on delivery.");
-        } else {
-          alert("Online Payment initiated.");
-        }
-      })
-      .catch((err) => {
-        console.error("Payment error:", err);
-        alert(`Error selecting ${method === "cod" ? "COD" : "Online Payment"}`);
-      })
-      .finally(() => {
-        setPaymentLoading("");
-      });
+      .finally(() => setIsLoading(false));
   };
 
   return (
@@ -274,151 +261,60 @@ export default function BookDelivery() {
                     : "bg-gradient-to-r from-blue-600 via-blue-700 to-blue-800 hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98] shadow-lg"
                 }`}
               >
-                {!isLoading && (
-                  <div className="absolute inset-0 bg-white/10 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 ease-in-out"></div>
+                {!isLoading ? (
+                  <div className="relative flex items-center justify-center space-x-2">
+                    <Package className="w-5 h-5" />
+                    <span>Book Delivery Now</span>
+                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" />
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center space-x-2">
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    <span>Creating Order...</span>
+                  </div>
                 )}
-                <div className="relative flex items-center justify-center space-x-2">
-                  {isLoading ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                      <span>Creating Order...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Package className="w-5 h-5" />
-                      <span>Book Delivery Now</span>
-                      <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" />
-                    </>
-                  )}
-                </div>
               </button>
             </div>
           </div>
         ) : (
-          /* Order Success & Payment Options */
-          <div className="space-y-6">
-            {/* Order Confirmation */}
-            <div className="bg-white/90 backdrop-blur-xl rounded-3xl p-8 border border-gray-200 shadow-2xl">
-              <div className="text-center mb-6">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <CheckCircle className="w-8 h-8 text-green-600" />
-                </div>
-                <h2 className="text-3xl font-black text-gray-900 mb-2">
-                  Order Created Successfully!
-                </h2>
-                <p className="text-gray-600">
-                  Your delivery has been booked and is ready for payment
-                </p>
-              </div>
-
-              <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-2xl p-6 border border-green-200 mb-6">
-                <div className="grid md:grid-cols-3 gap-4 text-center">
-                  <div>
-                    <h4 className="text-sm font-semibold text-gray-600 mb-1">
-                      Order ID
-                    </h4>
-                    <p className="text-xl font-black text-gray-900">
-                      {response._id}
-                    </p>
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-semibold text-gray-600 mb-1">
-                      Status
-                    </h4>
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
-                      {response.status}
-                    </span>
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-semibold text-gray-600 mb-1">
-                      Total Fare
-                    </h4>
-                    <p className="text-2xl font-black text-blue-600">
-                      ₹{response.fare}
-                    </p>
-                  </div>
-                </div>
-              </div>
+          /* Order Confirmation */
+          <div className="bg-white/90 backdrop-blur-xl rounded-3xl p-8 border border-gray-200 shadow-2xl text-center">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="w-8 h-8 text-green-600" />
             </div>
-
-            {/* Payment Options */}
-            <div className="bg-white/90 backdrop-blur-xl rounded-3xl p-8 border border-gray-200 shadow-2xl">
-              <h3 className="text-2xl font-bold text-gray-900 mb-6 text-center">
-                Choose Payment Method
-              </h3>
-
-              <div className="grid md:grid-cols-2 gap-6">
-                {/* Cash on Delivery */}
-                <button
-                  onClick={() => handlePayment("cod")}
-                  disabled={paymentLoading === "cod"}
-                  className={`p-6 border-2 border-gray-200 rounded-2xl hover:border-gray-800 hover:bg-gray-50 transition-all duration-300 group ${
-                    paymentLoading === "cod"
-                      ? "opacity-50 cursor-not-allowed"
-                      : ""
-                  }`}
-                >
-                  <div className="flex flex-col items-center text-center">
-                    <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-gray-800 transition-colors duration-300">
-                      <Banknote className="w-8 h-8 text-gray-600 group-hover:text-white transition-colors duration-300" />
-                    </div>
-                    <h4 className="text-xl font-bold text-gray-900 mb-2">
-                      Cash on Delivery
-                    </h4>
-                    <p className="text-gray-600 text-sm mb-4">
-                      Pay when your package is delivered
-                    </p>
-                    {paymentLoading === "cod" ? (
-                      <div className="flex items-center space-x-2">
-                        <div className="w-4 h-4 border-2 border-gray-400 border-t-gray-800 rounded-full animate-spin"></div>
-                        <span className="text-gray-600">Processing...</span>
-                      </div>
-                    ) : (
-                      <span className="text-gray-800 font-medium group-hover:text-gray-900">
-                        Select COD
-                      </span>
-                    )}
-                  </div>
-                </button>
-
-                {/* Online Payment */}
-                <button
-                  onClick={() => handlePayment("online")}
-                  disabled={paymentLoading === "online"}
-                  className={`p-6 border-2 border-blue-200 bg-blue-50 rounded-2xl hover:border-blue-600 hover:bg-blue-100 transition-all duration-300 group ${
-                    paymentLoading === "online"
-                      ? "opacity-50 cursor-not-allowed"
-                      : ""
-                  }`}
-                >
-                  <div className="flex flex-col items-center text-center">
-                    <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-blue-600 transition-colors duration-300">
-                      <Smartphone className="w-8 h-8 text-blue-600 group-hover:text-white transition-colors duration-300" />
-                    </div>
-                    <h4 className="text-xl font-bold text-gray-900 mb-2">
-                      Pay Online
-                    </h4>
-                    <p className="text-gray-600 text-sm mb-4">
-                      UPI, Cards, Net Banking & more
-                    </p>
-                    {paymentLoading === "online" ? (
-                      <div className="flex items-center space-x-2">
-                        <div className="w-4 h-4 border-2 border-blue-400 border-t-blue-600 rounded-full animate-spin"></div>
-                        <span className="text-blue-600">Processing...</span>
-                      </div>
-                    ) : (
-                      <span className="text-blue-600 font-medium group-hover:text-blue-700">
-                        Pay Now
-                      </span>
-                    )}
-                  </div>
-                </button>
-              </div>
-
-              <div className="mt-6 text-center">
-                <p className="text-xs text-gray-500">
-                  🔒 Your payment is secured with 256-bit SSL encryption
-                </p>
+            <h2 className="text-3xl font-black text-gray-900 mb-2">
+              Order Created Successfully!
+            </h2>
+            <p className="text-gray-600 mb-4">
+              Your delivery has been booked. Cash on Delivery is selected by
+              default.
+            </p>
+            <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-2xl p-6 border border-green-200 mb-6">
+              <div className="grid md:grid-cols-3 gap-4 text-center">
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-600 mb-1">
+                    Order ID
+                  </h4>
+                  <p className="text-xl font-black text-gray-900">
+                    {response._id}
+                  </p>
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-600 mb-1">
+                    Status
+                  </h4>
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
+                    {response.status}
+                  </span>
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-600 mb-1">
+                    Total Fare
+                  </h4>
+                  <p className="text-2xl font-black text-blue-600">
+                    ₹{response.fare}
+                  </p>
+                </div>
               </div>
             </div>
           </div>

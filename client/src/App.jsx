@@ -26,18 +26,21 @@ import Payments from "./pages/customer/Payment";
 import OrderDetail from "./pages/customer/OrderDetail";
 
 import ProtectedRoute from "./components/ProtectedRoute";
-import Unauthorized from "./components/Unauthorized"; // new Unauthorized page
+import Unauthorized from "./components/Unauthorized";
 import DriverProfile from "./pages/driver/Profile";
 import Earnings from "./pages/driver/Earnings";
 import Dashboard from "./pages/driver/Dashboard";
+
 // Admin Pages
 import AdminLayout from "./pages/admin/AdminLayout";
-import Dashboard from "./pages/admin/Dashboard";
-import Earnings from "./pages/admin/Earnings";
 import Users from "./pages/admin/User";
 import Drivers from "./pages/admin/Driver";
 import Orders from "./pages/admin/Order";
 import Reports from "./pages/admin/Reports";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminEarnings from "./pages/admin/AdminEarnings";
+import DriverDashboard from "./pages/driver/Dashboard";
+import OrderTracker from "./pages/customer/TrackOrder";
 
 function App() {
   return (
@@ -57,30 +60,23 @@ function App() {
           <Route path="/unauthorized" element={<Unauthorized />} />
 
           {/* ================= CUSTOMER ROUTES ================= */}
-          <Route element={<ProtectedRoute allowedRoles={["customer"]} />}>
-            <Route path="/customer/book" element={<BookDelivery />} />
-            <Route path="/customer/track" element={<TrackOrder />} />
-            <Route path="/customer/orders" element={<OrderHistory />} />
-            <Route path="/customer/profile" element={<Profile />} />
-            <Route path="/customer/payments" element={<Payments />} />
-            <Route path="/customer/orders/:id" element={<OrderDetail />} />
-          </Route>
+
+          <Route path="/customer/book" element={<BookDelivery />} />
+          <Route path="/customer/track" element={<OrderTracker />} />
+          <Route path="/customer/orders" element={<OrderHistory />} />
+          <Route path="/customer/profile" element={<Profile />} />
+          <Route path="/customer/payments" element={<Payments />} />
+          <Route path="/customer/orders/:id" element={<OrderDetail />} />
 
           {/* ================= DRIVER ROUTES ================= */}
-          {/* Driver Routes */}
           <Route
             path="/driver/dashboard"
             element={
               <ProtectedRoute role="driver">
-                <Dashboard />
+                <DriverDashboard />
               </ProtectedRoute>
             }
           />
-          <Route element={<ProtectedRoute role="driver" />}>
-            {/* <Route path="/driver/orders" element={<h1>Orders</h1>} />
-            <Route path="/driver/revenue" element={<h1>Revenue</h1>} />
-            <Route path="/driver/profile" element={<h1>Profile</h1>} /> */}
-          </Route>
           <Route
             path="/driver/profile"
             element={
@@ -107,16 +103,13 @@ function App() {
           />
 
           {/* ================= ADMIN ROUTES ================= */}
-          {/* ================= ADMIN ROUTES ================= */}
-          <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
-            <Route element={<AdminLayout />}>
-              <Route path="/admin/dashboard" element={<Dashboard />} />
-              <Route path="/admin/users" element={<Users />} />
-              <Route path="/admin/drivers" element={<Drivers />} />
-              <Route path="/admin/orders" element={<Orders />} />
-              <Route path="/admin/earnings" element={<Earnings />} />
-              <Route path="/admin/reports" element={<Reports />} />
-            </Route>
+          <Route element={<AdminLayout />}>
+            <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin/users" element={<Users />} />
+            <Route path="/admin/drivers" element={<Drivers />} />
+            <Route path="/admin/orders" element={<Orders />} />
+            <Route path="/admin/earnings" element={<AdminEarnings />} />
+            <Route path="/admin/reports" element={<Reports />} />
           </Route>
 
           {/* Fallback */}

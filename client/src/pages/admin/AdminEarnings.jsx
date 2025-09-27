@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { getEarnings } from "@/api/adminApi";
+import { getEarnings } from "../../api/adminApi";
 
-export default function Earnings() {
+export default function AdminEarnings() {
   const [earnings, setEarnings] = useState([]);
   const token = localStorage.getItem("token");
 

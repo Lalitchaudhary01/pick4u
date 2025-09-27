@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { getAllDrivers, approveDriver, rejectDriver } from "@/api/adminApi";
+import { getAllDrivers, approveDriver, rejectDriver } from "../../api/adminApi";
 
 export default function Drivers() {
   const [drivers, setDrivers] = useState([]);

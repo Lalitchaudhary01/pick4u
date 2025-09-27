@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { getAdminStats } from "@/api/adminApi";
+import { getAdminStats } from "../../api/adminApi";
 
-export default function Dashboard() {
+export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const token = localStorage.getItem("token");
 

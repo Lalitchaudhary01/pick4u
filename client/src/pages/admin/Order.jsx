@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { getAllOrders, assignDriver, cancelOrder } from "@/api/adminApi";
+import { getAllOrders, assignDriver, cancelOrder } from "../../api/adminApi";
 
 export default function Orders() {
   const [orders, setOrders] = useState([]);

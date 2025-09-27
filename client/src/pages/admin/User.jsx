@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { getAllUsers, blockUser } from "@/api/adminApi";
+import { getAllUsers, blockUser } from "../../api/adminApi";
 
 export default function Users() {
   const [users, setUsers] = useState([]);
