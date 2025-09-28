@@ -44,8 +44,24 @@ const orderSchema = new mongoose.Schema(
       enum: ["pending", "paid", "failed"],
       default: "pending",
     },
+
+    // ---------------- Real-time Tracking ----------------
+    driverLocation: {
+      type: {
+        type: String,
+        enum: ["Point"],
+        default: "Point",
+      },
+      coordinates: {
+        type: [Number], // [longitude, latitude]
+        default: [0, 0],
+      },
+    },
   },
   { timestamps: true }
 );
+
+// Create geospatial index for driverLocation
+orderSchema.index({ driverLocation: "2dsphere" });
 
 export default mongoose.model("Order", orderSchema);

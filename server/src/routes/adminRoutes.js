@@ -1,46 +1,55 @@
-// server/src/routes/adminRoutes.js
 import express from "express";
 import {
-  getStats,
-  getUsers,
-  blockUser,
-  getDrivers,
-  approveDriver,
-  rejectDriver,
-  getOrders,
-  assignDriverToOrder,
+  getDashboard,
+  getAllOrders,
+  assignDriver,
   cancelOrder,
-  getEarnings,
-  getReports,
+  approveDriver,
+  blockDriver,
+  getAllCustomers,
+  suspendCustomer,
+  createCoupon,
+  getCoupons,
+  updateCoupon,
+  deleteCoupon,
+  getFareConfig,
+  updateFareConfig,
 } from "../controllers/adminController.js";
 
-import { authMiddleware } from "../middleware/authMiddleware.js";
-import { adminOnly } from "../middleware/authMiddleware.js";
+import { authMiddleware, adminOnly } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// all routes protected: auth + adminOnly
-router.use(authMiddleware, adminOnly);
-
-// Stats
-router.get("/stats", getStats);
-
-// Users
-router.get("/users", getUsers);
-router.put("/users/:id/block", blockUser);
-
-// Drivers
-router.get("/drivers", getDrivers);
-router.put("/drivers/:id/approve", approveDriver);
-router.put("/drivers/:id/reject", rejectDriver);
+// Dashboard
+router.get("/dashboard", authMiddleware, adminOnly, getDashboard);
 
 // Orders
-router.get("/orders", getOrders);
-router.put("/orders/:id/assign", assignDriverToOrder);
-router.put("/orders/:id/cancel", cancelOrder);
+router.get("/orders", authMiddleware, adminOnly, getAllOrders);
+router.put("/orders/:id/assign", authMiddleware, adminOnly, assignDriver);
+router.put("/orders/:id/cancel", authMiddleware, adminOnly, cancelOrder);
 
-// Earnings & Reports
-router.get("/earnings", getEarnings);
-router.get("/reports", getReports);
+// Drivers
+router.put("/drivers/:id/approve", authMiddleware, adminOnly, approveDriver);
+router.put("/drivers/:id/block", authMiddleware, adminOnly, blockDriver);
 
+// Customers
+router.get("/customers", authMiddleware, adminOnly, getAllCustomers);
+router.put(
+  "/customers/:id/suspend",
+  authMiddleware,
+  adminOnly,
+  suspendCustomer
+);
+
+// Coupons
+router.post("/coupons", authMiddleware, adminOnly, createCoupon);
+router.get("/coupons", authMiddleware, adminOnly, getCoupons);
+router.put("/coupons/:id", authMiddleware, adminOnly, updateCoupon);
+router.delete("/coupons/:id", authMiddleware, adminOnly, deleteCoupon);
+
+// Fare Config
+router.get("/fare-config", authMiddleware, adminOnly, getFareConfig);
+router.put("/fare-config", authMiddleware, adminOnly, updateFareConfig);
+
+// ✅ Default export fix
 export default router;

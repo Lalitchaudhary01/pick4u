@@ -2,26 +2,28 @@ import mongoose from "mongoose";
 
 const paymentSchema = new mongoose.Schema(
   {
-    order: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Order",
-      required: true,
-    },
     customer: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
-    method: {
-      type: String,
-      enum: ["cod", "online"],
-      default: "cod",
+    order: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Order",
+      required: true,
     },
-    amount: { type: Number, required: true },
+    provider: {
+      type: String,
+      enum: ["razorpay", "stripe", "paypal"],
+      required: true,
+    },
+    providerOrderId: String,
+    providerPaymentId: String,
+    amount: Number,
     status: {
       type: String,
-      enum: ["pending", "paid", "failed"],
-      default: "pending",
+      enum: ["created", "paid", "failed"],
+      default: "created",
     },
   },
   { timestamps: true }

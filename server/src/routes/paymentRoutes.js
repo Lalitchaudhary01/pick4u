@@ -1,15 +1,24 @@
-import express from "express";
-import { createPayment } from "../controllers/paymentController.js";
-import { authMiddleware } from "../middleware/authMiddleware.js";
-import { getMyPayments } from "../controllers/paymentController.js";
+// // src/routes/paymentRoutes.js
+// import express from "express";
+// import {
+//   createPayment,
+//   verifyPayment,
+//   getMyPayments,
+// } from "../controllers/paymentController.js";
+// import { authMiddleware } from "../middleware/authMiddleware.js";
 
-const router = express.Router();
+// const router = express.Router();
 
-router.use(authMiddleware);
+// // All routes need authentication
+// router.use(authMiddleware);
 
-// POST /api/payments
-router.post("/", createPayment);
+// // POST /api/payments → create new payment (Razorpay)
+// router.post("/", createPayment);
 
-router.get("/me", getMyPayments);
+// // POST /api/payments/verify → verify payment signature
+// router.post("/verify", verifyPayment);
 
-export default router;
+// // GET /api/payments/me → get payments of logged-in user
+// router.get("/me", getMyPayments);
+
+// export default router;

@@ -1,29 +1,47 @@
+// src/routes/driverRoutes.js
 import express from "express";
-import { protect, authorize } from "../middleware/authMiddleware.js";
-import multer from "multer";
 import {
   kycUploadController,
   getDriverProfile,
+  updateProfile,
   getDriverEarnings,
+  getAssignedJobs,
+  acceptJob,
+  rejectJob,
+  updateJobStatus,
+  uploadProof,
+  getEarnings,
+  getReports,
 } from "../controllers/driverController.js";
+
+import { authMiddleware } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// Multer setup for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, "uploads/kyc/"),
-  filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname),
-});
-const upload = multer({ storage });
+// ✅ All routes are protected
+router.use(authMiddleware);
 
-router.post(
-  "/kyc-upload",
-  protect,
-  authorize("driver"),
-  upload.array("kycDocs", 5),
-  kycUploadController
-);
-router.get("/profile", protect, authorize("driver"), getDriverProfile);
-router.get("/earnings", protect, authorize("driver"), getDriverEarnings);
+// KYC upload
+router.post("/kyc", kycUploadController);
+
+// Driver profile
+router.get("/profile", getDriverProfile);
+router.put("/profile", updateProfile);
+
+// Earnings & reports
+router.get("/earnings", getDriverEarnings); // total earnings
+router.get("/jobs", getAssignedJobs); // active jobs
+router.get("/reports", getReports); // completed jobs + total earnings
+
+// Job actions
+router.post("/jobs/:id/accept", acceptJob);
+router.post("/jobs/:id/reject", rejectJob);
+router.put("/jobs/:id/status", updateJobStatus);
+
+// Upload proof for delivery
+router.post("/jobs/:id/proof", uploadProof);
+
+// Additional earnings route
+router.get("/my-earnings", getEarnings);
 
 export default router;
