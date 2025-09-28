@@ -4,11 +4,11 @@ const API = axios.create({
   baseURL: "http://localhost:5000/api",
 });
 
+// Attach token automatically
 API.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem("token"); // save JWT after login
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
-export const getProfile = () => API.get("/user/me");
-export const updateProfile = (data) => API.put("/user/me", data);
+export default API;

@@ -1,19 +1,9 @@
-import axios from "axios";
+import API from "./axios";
 
-const API = axios.create({
-  baseURL: "http://localhost:5000/api",
-});
+// Customer Payments
+export const makePayment = (data) => API.post("/customer/pay", data);
+export const verifyPayment = (data) =>
+  API.post("/customer/verify-payment", data);
 
-API.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
-
-// Create Payment
-export const createPayment = (data) => API.post("/payments", data);
-
-// Get Payment Details
-export const getPaymentById = (id) => API.get(`/payments/${id}`);
-
-export const getMyPayments = () => API.get("/payments/me");
+// Core Refunds (Admin side mostly)
+export const refundPayment = (data) => API.post("/core/payment/refund", data);

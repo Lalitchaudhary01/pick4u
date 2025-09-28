@@ -1,50 +1,33 @@
-import axios from "axios";
+import API from "./axios";
 
-const API = axios.create({
-  baseURL: "http://localhost:5000/api/admin",
-});
+// Dashboard
+export const getDashboard = () => API.get("/admin/dashboard");
 
-// Automatically add token to every request if passed
-const authHeaders = (token) => ({
-  headers: { Authorization: `Bearer ${token}` },
-});
+// Orders
+export const getAllOrders = () => API.get("/admin/orders");
+export const assignDriver = (id, data) =>
+  API.put(`/admin/orders/${id}/assign`, data);
+export const cancelOrder = (id) => API.put(`/admin/orders/${id}/cancel`);
 
-// ===== Dashboard Stats =====
-export const getAdminStats = (token) => API.get("/stats", authHeaders(token));
+// Drivers
+export const approveDriver = (id) => API.put(`/admin/drivers/${id}/approve`);
+export const blockDriver = (id) => API.put(`/admin/drivers/${id}/block`);
 
-// ===== Users =====
-export const getAllUsers = (token) => API.get("/users", authHeaders(token));
+// Customers
+export const getCustomers = () => API.get("/admin/customers");
+export const suspendCustomer = (id) =>
+  API.put(`/admin/customers/${id}/suspend`);
 
-export const blockUser = (id, token, isBlocked) =>
-  API.put(`/users/${id}/block`, { isBlocked }, authHeaders(token));
+// Coupons
+export const createCoupon = (data) => API.post("/admin/coupons", data);
+export const getCoupons = () => API.get("/admin/coupons");
+export const updateCoupon = (id, data) => API.put(`/admin/coupons/${id}`, data);
+export const deleteCoupon = (id) => API.delete(`/admin/coupons/${id}`);
 
-// ===== Drivers =====
-export const getAllDrivers = (token) => API.get("/drivers", authHeaders(token));
+// Fares
+export const getFareConfig = () => API.get("/admin/fares");
+export const updateFareConfig = (data) => API.put("/admin/fares", data);
 
-export const approveDriver = (id, token) =>
-  API.put(`/drivers/${id}/approve`, {}, authHeaders(token));
-
-export const rejectDriver = (id, token) =>
-  API.put(`/drivers/${id}/reject`, {}, authHeaders(token));
-
-// ===== Orders =====
-export const getAllOrders = (token, status) =>
-  API.get(`/orders${status ? `?status=${status}` : ""}`, authHeaders(token));
-
-export const assignDriver = (orderId, driverId, token) =>
-  API.put(`/orders/${orderId}/assign`, { driverId }, authHeaders(token));
-
-export const cancelOrder = (orderId, token) =>
-  API.put(`/orders/${orderId}/cancel`, {}, authHeaders(token));
-
-// ===== Earnings =====
-export const getEarnings = (token) => API.get("/earnings", authHeaders(token));
-
-// ===== Reports =====
-export const getReports = (token, type = "orders", from, to) =>
-  API.get(
-    `/reports?type=${type}${from ? `&from=${from}` : ""}${
-      to ? `&to=${to}` : ""
-    }`,
-    authHeaders(token)
-  );
+// Reports
+export const getOrderReport = () => API.get("/admin/reports/orders");
+export const getRevenueReport = () => API.get("/admin/reports/revenue");

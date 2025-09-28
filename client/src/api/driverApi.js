@@ -1,48 +1,23 @@
-import axios from "axios";
+import API from "./axios";
 
-const API = axios.create({
-  baseURL: "http://localhost:5000/api/driver", // backend driver routes
-});
+// KYC
+export const uploadKyc = (data) => API.post("/driver/upload-kyc", data);
 
-// Attach token automatically if needed
-API.interceptors.request.use((config) => {
-  const token = localStorage.getItem("driverToken");
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
+// Profile
+export const getDriverProfile = () => API.get("/driver/profile");
+export const updateDriverProfile = (data) => API.put("/driver/profile", data);
 
-// Get driver profile
-export const getDriverProfile = (token) =>
-  API.get("/profile", {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+// Jobs
+export const getAssignedJobs = () => API.get("/driver/jobs/assigned");
+export const acceptJob = (id) => API.post(`/driver/jobs/${id}/accept`);
+export const rejectJob = (id) => API.post(`/driver/jobs/${id}/reject`);
 
-// Upload KYC documents
-export const uploadKYC = (files, token) => {
-  const formData = new FormData();
-  files.forEach((file) => formData.append("kycDocs", file));
+// Delivery Workflow
+export const updateJobStatus = (id, data) =>
+  API.put(`/driver/jobs/${id}/status`, data);
+export const uploadProof = (id, data) =>
+  API.post(`/driver/jobs/${id}/proof`, data);
 
-  return API.post("/kyc-upload", formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-      Authorization: `Bearer ${token}`,
-    },
-  });
-};
-
-// Get driver earnings
-export const getDriverEarnings = (token) =>
-  API.get("/earnings", {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-
-// ---------------- Driver Job Flow APIs ------------------
-
-// Fetch all assigned jobs
-export const getAssignedJobs = () => API.get("/assigned");
-
-// Accept a job
-export const acceptJob = (orderId) => API.put(`/orders/${orderId}/accept`);
-
-// Decline a job
-export const declineJob = (orderId) => API.put(`/orders/${orderId}/decline`);
+// Earnings & Reports
+export const getEarnings = () => API.get("/driver/earnings");
+export const getReports = () => API.get("/driver/reports");
