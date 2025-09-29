@@ -6,121 +6,90 @@ import {
   Navigate,
 } from "react-router-dom";
 
-import Register from "./pages/auth/Register";
-import VerifyOTP from "./pages/auth/VerifyOTP";
-import Login from "./pages/auth/Login";
-
-// Driver Pages
-import KYCUpload from "./pages/driver/KYCUpload";
-
-// Public Website
-import Navbar from "./components/Navbar";
-import Footer from "./components/Footer";
-import Home from "./pages/Home";
-
-import BookDelivery from "./pages/customer/BookDelivery";
-import TrackOrder from "./pages/customer/TrackOrder";
-import OrderHistory from "./pages/customer/OrderHistory";
-import Profile from "./pages/customer/Profile";
-import Payments from "./pages/customer/Payment";
-import OrderDetail from "./pages/customer/OrderDetail";
-
 import ProtectedRoute from "./components/ProtectedRoute";
-import Unauthorized from "./components/Unauthorized";
-import DriverProfile from "./pages/driver/Profile";
+import Navbar from "./components/Navbar"; // ✅ Navbar import
+import { AuthProvider } from "./contexts/AuthContext";
+import { SocketProvider } from "./contexts/SocketContext";
+import Login from "./pages/auth/Login";
+import Register from "./pages/auth/Register";
+import CustomerDashboard from "./pages/customer/CustomerDashboard";
+import BookOrder from "./pages/customer/BookOrder";
+import MyOrders from "./pages/customer/MyOrders";
+import Profile from "./pages/customer/Profile";
+import JobsAssigned from "./pages/driver/JobsAssigned";
 import Earnings from "./pages/driver/Earnings";
-import Dashboard from "./pages/driver/Dashboard";
-
-// Admin Pages
-import AdminLayout from "./pages/admin/AdminLayout";
-import Users from "./pages/admin/User";
-import Drivers from "./pages/admin/Driver";
-import Orders from "./pages/admin/Order";
-import Reports from "./pages/admin/Reports";
+import DriverReports from "./pages/driver/DriverReports";
 import AdminDashboard from "./pages/admin/AdminDashboard";
-import AdminEarnings from "./pages/admin/AdminEarnings";
-import DriverDashboard from "./pages/driver/Dashboard";
-import OrderTracker from "./pages/customer/TrackOrder";
+import AdminOrders from "./pages/admin/AdminOrder";
+import AdminDrivers from "./pages/admin/AdminDriver";
+import AdminCustomers from "./pages/admin/AdminCustomers";
+import AdminReports from "./pages/admin/AdminReports";
+import DistanceCalculator from "./pages/core/DistanceCalculator";
+import FareCalculator from "./pages/core/FareCalculator";
+import Notifications from "./pages/core/Notifications";
+import Refund from "./pages/core/Refund";
+import DriverDashboard from "./pages/driver/DriverDashboard";
 
-function App() {
+// ...imports for pages
+
+export default function App() {
   return (
-    <Router>
-      {/* Navbar always visible */}
-      <Navbar />
+    <AuthProvider>
+      <SocketProvider>
+        <Router>
+          <Navbar /> {/* ✅ Navbar always visible */}
+          <Routes>
+            {/* Public */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
 
-      <main>
-        <Routes>
-          {/* Public Website */}
-          <Route path="/" element={<Home />} />
+            {/* Customer Protected */}
+            <Route element={<ProtectedRoute allowedRoles={["customer"]} />}>
+              <Route
+                path="/customer/dashboard"
+                element={<CustomerDashboard />}
+              />
+              <Route path="/customer/book" element={<BookOrder />} />
+              <Route path="/customer/orders" element={<MyOrders />} />
+              <Route path="/customer/profile" element={<Profile />} />
+            </Route>
 
-          {/* Auth */}
-          <Route path="/auth/register" element={<Register />} />
-          <Route path="/auth/verify-otp" element={<VerifyOTP />} />
-          <Route path="/auth/login" element={<Login />} />
-          <Route path="/unauthorized" element={<Unauthorized />} />
+            {/* Driver Protected */}
+            <Route element={<ProtectedRoute allowedRoles={["driver"]} />}>
+              <Route path="/driver/dashboard" element={<DriverDashboard />} />
+              <Route path="/driver/jobs" element={<JobsAssigned />} />
+              <Route path="/driver/earnings" element={<Earnings />} />
+              <Route path="/driver/reports" element={<DriverReports />} />
+            </Route>
 
-          {/* ================= CUSTOMER ROUTES ================= */}
+            {/* Admin Protected */}
+            <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
+              <Route path="/admin/dashboard" element={<AdminDashboard />} />
+              <Route path="/admin/orders" element={<AdminOrders />} />
+              <Route path="/admin/drivers" element={<AdminDrivers />} />
+              <Route path="/admin/customers" element={<AdminCustomers />} />
+              <Route path="/admin/reports" element={<AdminReports />} />
+            </Route>
 
-          <Route path="/customer/book" element={<BookDelivery />} />
-          <Route path="/customer/track" element={<OrderTracker />} />
-          <Route path="/customer/orders" element={<OrderHistory />} />
-          <Route path="/customer/profile" element={<Profile />} />
-          <Route path="/customer/payments" element={<Payments />} />
-          <Route path="/customer/orders/:id" element={<OrderDetail />} />
+            {/* Core Routes */}
+            <Route
+              element={
+                <ProtectedRoute
+                  allowedRoles={["customer", "driver", "admin"]}
+                />
+              }
+            >
+              <Route path="/core/distance" element={<DistanceCalculator />} />
+              <Route path="/core/fare" element={<FareCalculator />} />
+              <Route path="/core/notifications" element={<Notifications />} />
+              <Route path="/core/refund" element={<Refund />} />
+            </Route>
 
-          {/* ================= DRIVER ROUTES ================= */}
-          <Route
-            path="/driver/dashboard"
-            element={
-              <ProtectedRoute role="driver">
-                <DriverDashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/driver/profile"
-            element={
-              <ProtectedRoute role="driver">
-                <DriverProfile />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/driver/kyc"
-            element={
-              <ProtectedRoute role="driver">
-                <KYCUpload />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/driver/earnings"
-            element={
-              <ProtectedRoute role="driver">
-                <Earnings />
-              </ProtectedRoute>
-            }
-          />
-
-          {/* ================= ADMIN ROUTES ================= */}
-          <Route element={<AdminLayout />}>
-            <Route path="/admin/dashboard" element={<AdminDashboard />} />
-            <Route path="/admin/users" element={<Users />} />
-            <Route path="/admin/drivers" element={<Drivers />} />
-            <Route path="/admin/orders" element={<Orders />} />
-            <Route path="/admin/earnings" element={<AdminEarnings />} />
-            <Route path="/admin/reports" element={<Reports />} />
-          </Route>
-
-          {/* Fallback */}
-          <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
-      </main>
-
-      {/* Footer always visible */}
-      <Footer />
-    </Router>
+            {/* Default */}
+            <Route path="*" element={<Navigate to="/login" replace />} />
+          </Routes>
+        </Router>
+      </SocketProvider>
+    </AuthProvider>
   );
 }
-
-export default App;

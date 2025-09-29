@@ -1,13 +1,24 @@
 import React from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, Outlet } from "react-router-dom";
 
-export default function ProtectedRoute({ children }) {
+export default function ProtectedRoute({ allowedRoles }) {
   const token = localStorage.getItem("token");
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
 
+  // Not logged in
   if (!token) {
-    // not logged in → redirect to login
-    return <Navigate to="auth/login" replace />;
+    return <Navigate to="/login" replace />;
   }
 
-  return children;
+  // Role not allowed
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
+    return (
+      <div className="p-6 text-center text-red-600 font-semibold">
+        🚫 Unauthorized - You are not allowed to access this page
+      </div>
+    );
+  }
+
+  // If everything is fine → render child route
+  return <Outlet />;
 }

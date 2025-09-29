@@ -2,19 +2,19 @@
 export { default as API } from "./axios";
 
 // Auth
-export * from "./auth";
+export * from "./authApi";
 
 // Customer
 export * from "./customer";
 
 // Driver
-export * from "./driver";
+export * from "./driverApi";
 
 // Admin
-export * from "./admin";
+export * from "./adminApi";
 
 // Core
 export * from "./core";
 
 // Payment
-export * from "./payment";
+export * from "./paymentApi";

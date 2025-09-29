@@ -1,250 +1,153 @@
-import React, { useState, useEffect } from "react";
-import {
-  Mail,
-  Lock,
-  Eye,
-  EyeOff,
-  CheckCircle,
-  AlertCircle,
-  Navigation,
-  UserCircle,
-  Truck,
-  Shield,
-} from "lucide-react";
-import { loginUser } from "../../api/authApi";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { login as apiLogin } from "../../api"; // from api/index.js
 
-const Login = () => {
-  const [formData, setFormData] = useState({ email: "", password: "" });
-  const [message, setMessage] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
+export default function Login() {
   const navigate = useNavigate();
 
-  // check already logged in
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    const role = localStorage.getItem("role");
-    if (token && role) {
-      setMessage(`✅ Already logged in as ${role}. Redirecting...`);
-      setTimeout(() => {
-        handleRoleRedirect(role);
-      }, 1200);
-    }
-  }, []);
+  const [form, setForm] = useState({
+    email: "",
+    password: "",
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const handleChange = (e) =>
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  const onChange = (e) =>
+    setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
 
-  const handleSubmit = async (e) => {
+  const onSubmit = async (e) => {
     e.preventDefault();
-    setIsLoading(true);
-    setMessage("");
+    setError(null);
 
-    if (!formData.email || !formData.password) {
-      setMessage("❌ Please fill all required fields");
-      setIsLoading(false);
+    if (!form.email || !form.password) {
+      setError("Email and password are required");
       return;
     }
 
     try {
-      const response = await loginUser(formData);
+      setLoading(true);
+      const res = await apiLogin(form); // expects { token, user }
+      if (res?.data?.success) {
+        const { token, user } = res.data;
 
-      if (response.data.success) {
-        const { token, user } = response.data;
-
+        // Save token + user
         localStorage.setItem("token", token);
-        localStorage.setItem("role", user.role || "customer");
         localStorage.setItem("user", JSON.stringify(user));
 
-        if (rememberMe) {
-          localStorage.setItem("rememberMe", "true");
-          localStorage.setItem("savedEmail", formData.email);
-        } else {
-          localStorage.removeItem("rememberMe");
-          localStorage.removeItem("savedEmail");
-        }
-
-        setMessage("✅ Login successful! Redirecting...");
-
-        setTimeout(() => {
-          handleRoleRedirect(user.role);
-        }, 1200);
+        // Redirect based on role
+        if (user.role === "customer") navigate("/customer/dashboard");
+        else if (user.role === "driver") navigate("/driver/dashboard");
+        else if (user.role === "admin") navigate("/admin/dashboard");
+        else navigate("/");
       } else {
-        setMessage(`❌ ${response.data.message || "Login failed"}`);
+        setError(res?.data?.message || "Login failed");
       }
-    } catch (error) {
-      if (error.response) {
-        setMessage(`❌ ${error.response.data.message || "Login failed"}`);
-      } else if (error.request) {
-        setMessage("❌ Network error. Please check your connection.");
-      } else {
-        setMessage("❌ Something went wrong. Please try again.");
-      }
+    } catch (err) {
+      console.error("Login error:", err);
+      setError(
+        err?.response?.data?.message || err.message || "Something went wrong"
+      );
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
-
-  const handleRoleRedirect = (role) => {
-    switch (role) {
-      case "customer":
-        navigate("/");
-        break;
-      case "driver":
-        navigate("/driver/dashboard");
-        break;
-      case "admin":
-        navigate("/admin/dashboard");
-        break;
-      default:
-        navigate("/");
-    }
-  };
-
-  const handleRegisterClick = () => navigate("/register");
-  const handleForgotPassword = () => navigate("/forgot-password");
-
-  const getRoleIcon = (role) => {
-    switch (role) {
-      case "customer":
-        return <UserCircle className="w-5 h-5" />;
-      case "driver":
-        return <Truck className="w-5 h-5" />;
-      case "admin":
-        return <Shield className="w-5 h-5" />;
-      default:
-        return <UserCircle className="w-5 h-5" />;
-    }
-  };
-
-  useEffect(() => {
-    if (localStorage.getItem("rememberMe") === "true") {
-      const savedEmail = localStorage.getItem("savedEmail");
-      if (savedEmail) {
-        setFormData((prev) => ({ ...prev, email: savedEmail }));
-        setRememberMe(true);
-      }
-    }
-  }, []);
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-100">
-      <div className="relative w-full max-w-md">
-        {/* Branding */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-black text-blue-600">PICK4U</h1>
-          <p className="text-gray-600">Sign in to your account</p>
-        </div>
+    <div className="min-h-screen bg-gradient-to-b from-sky-50 to-white flex items-center justify-center p-6">
+      <div className="w-full max-w-md bg-white shadow-lg rounded-xl p-6">
+        <h2 className="text-2xl font-semibold mb-2 text-gray-800 text-center">
+          Welcome back
+        </h2>
+        <p className="text-sm text-gray-500 mb-6 text-center">
+          Login to continue with Pick4U
+        </p>
 
-        <div className="bg-white rounded-3xl p-8 shadow-2xl">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Email */}
-            <div>
-              <label className="text-sm font-semibold">Email</label>
+        {error && (
+          <div className="bg-red-50 text-red-700 border border-red-100 px-4 py-2 rounded mb-4">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={onSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Email
+            </label>
+            <input
+              name="email"
+              value={form.email}
+              onChange={onChange}
+              type="email"
+              className="mt-1 block w-full rounded-md border-gray-200 shadow-sm focus:ring-2 focus:ring-sky-300"
+              placeholder="email@example.com"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Password
+            </label>
+            <div className="relative">
               <input
-                name="email"
-                type="email"
-                placeholder="Enter email"
-                value={formData.email}
-                onChange={handleChange}
-                required
-                className="w-full p-3 border rounded-xl mt-1"
+                name="password"
+                value={form.password}
+                onChange={onChange}
+                type={showPassword ? "text" : "password"}
+                className="mt-1 block w-full rounded-md border-gray-200 shadow-sm pr-10 focus:ring-2 focus:ring-sky-300"
+                placeholder="••••••••"
               />
-            </div>
-
-            {/* Password */}
-            <div>
-              <label className="text-sm font-semibold">Password</label>
-              <div className="relative">
-                <input
-                  name="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Enter password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  required
-                  className="w-full p-3 border rounded-xl mt-1"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-3 text-gray-500"
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-            </div>
-
-            {/* Remember Me + Forgot Password */}
-            <div className="flex justify-between items-center">
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                />
-                <span className="text-sm">Remember me</span>
-              </label>
               <button
                 type="button"
-                onClick={handleForgotPassword}
-                className="text-sm text-blue-600"
+                onClick={() => setShowPassword((s) => !s)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-sm text-gray-500 px-2 py-1 rounded"
               >
-                Forgot Password?
+                {showPassword ? "Hide" : "Show"}
               </button>
             </div>
+          </div>
 
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full py-3 rounded-xl font-bold text-white bg-gradient-to-r from-blue-600 to-blue-800"
-            >
-              {isLoading ? "Signing In..." : "Sign In"}
-            </button>
-          </form>
-
-          {message && (
-            <div
-              className={`mt-6 p-3 rounded-xl ${
-                message.includes("✅")
-                  ? "bg-green-100 text-green-800"
-                  : "bg-red-100 text-red-800"
-              }`}
-            >
-              {message}
-            </div>
-          )}
-
-          {/* Register Link */}
-          <div className="mt-6 text-center">
-            <p>
-              Don't have an account?{" "}
-              <button
-                onClick={handleRegisterClick}
-                className="text-blue-600 font-semibold"
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-2 px-4 bg-sky-600 hover:bg-sky-700 text-white rounded-md font-medium disabled:opacity-60 flex items-center justify-center"
+          >
+            {loading ? (
+              <svg
+                className="w-5 h-5 animate-spin mr-2 text-white"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
               >
-                Create Account
-              </button>
-            </p>
-          </div>
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                ></path>
+              </svg>
+            ) : null}
+            {loading ? "Logging in..." : "Login"}
+          </button>
+        </form>
 
-          {/* Quick Access Info */}
-          <div className="mt-6 grid grid-cols-3 gap-4 text-center">
-            {["customer", "driver", "admin"].map((role) => (
-              <div key={role}>
-                <div className="w-12 h-12 mx-auto bg-blue-100 rounded-xl flex items-center justify-center mb-2">
-                  {getRoleIcon(role)}
-                </div>
-                <p className="text-xs font-medium capitalize">{role}</p>
-              </div>
-            ))}
-          </div>
+        <div className="mt-4 text-center text-sm text-gray-600">
+          Don’t have an account?{" "}
+          <button
+            onClick={() => navigate("/register")}
+            className="text-sky-600 hover:underline font-medium"
+          >
+            Register
+          </button>
         </div>
       </div>
     </div>
   );
-};
-
-export default Login;
+}

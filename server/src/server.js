@@ -9,7 +9,7 @@ import authRoutes from "./routes/authRoutes.js";
 import customerRoutes from "./routes/customer.js";
 import driverRoutes from "./routes/driverRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
-import coreRoutes from "./routes/coreRoutes.js";
+// import coreRoutes from "./routes/coreRoutes.js";
 
 // Sockets
 import driverSocket from "./sockets/driverSocket.js";
@@ -35,7 +35,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/customer", customerRoutes);
 app.use("/api/driver", driverRoutes);
 app.use("/api/admin", adminRoutes);
-app.use("/api/core", coreRoutes);
+// app.use("/api/core", coreRoutes);
 
 // ✅ Start Server + Attach Socket.IO
 const server = app.listen(PORT, () => {

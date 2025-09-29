@@ -1,20 +1,19 @@
-// context/SocketContext.js
-import { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import { io } from "socket.io-client";
 
 const SocketContext = createContext();
 
-export const SocketProvider = ({ children, userId }) => {
+export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
 
   useEffect(() => {
-    if (!userId) return;
-    const s = io("http://localhost:5000"); // your backend
-    s.emit("join-room", { userId });
+    const s = io("http://localhost:5000");
     setSocket(s);
 
-    return () => s.disconnect();
-  }, [userId]);
+    return () => {
+      s.disconnect();
+    };
+  }, []);
 
   return (
     <SocketContext.Provider value={socket}>{children}</SocketContext.Provider>

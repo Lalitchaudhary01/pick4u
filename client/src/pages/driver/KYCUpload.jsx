@@ -1,45 +1,28 @@
 import React, { useState } from "react";
-import { uploadKYC } from "../../api/driverApi";
+import { uploadKyc } from "../../api";
 
-const KYCUpload = () => {
-  const [files, setFiles] = useState([]);
-  const [message, setMessage] = useState("");
-  const token = localStorage.getItem("token");
+export default function KYCUpload() {
+  const [file, setFile] = useState(null);
+  const [msg, setMsg] = useState("");
 
-  const handleFileChange = (e) => {
-    setFiles([...e.target.files]);
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      await uploadKYC(files, token);
-      setMessage("✅ KYC uploaded successfully. Waiting for approval.");
-    } catch (err) {
-      setMessage("❌ Failed to upload KYC.");
-    }
+  const handleUpload = async () => {
+    const formData = new FormData();
+    formData.append("kycDoc", file);
+    const res = await uploadKyc(formData);
+    setMsg(res.data.message || "KYC uploaded");
   };
 
   return (
-    <div className="max-w-lg mx-auto bg-white shadow-lg rounded-2xl p-6 mt-10">
-      <h2 className="text-2xl font-bold mb-4">Upload KYC Documents</h2>
-      <form onSubmit={handleSubmit}>
-        <input
-          type="file"
-          multiple
-          onChange={handleFileChange}
-          className="border p-2 w-full mb-4"
-        />
-        <button
-          type="submit"
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg"
-        >
-          Upload
-        </button>
-      </form>
-      {message && <p className="mt-4 text-sm">{message}</p>}
+    <div className="p-6 max-w-md mx-auto space-y-4">
+      <h2 className="text-xl font-bold">Upload KYC Documents</h2>
+      <input type="file" onChange={(e) => setFile(e.target.files[0])} />
+      <button
+        onClick={handleUpload}
+        className="bg-sky-600 text-white px-4 py-2 rounded w-full"
+      >
+        Upload
+      </button>
+      {msg && <p className="text-green-600">{msg}</p>}
     </div>
   );
-};
-
-export default KYCUpload;
+}

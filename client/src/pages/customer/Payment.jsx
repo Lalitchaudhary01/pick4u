@@ -1,77 +1,50 @@
-import { useEffect, useState } from "react";
-import { getMyPayments } from "../../api/paymentApi";
+import React, { useState } from "react";
+import { makePayment, verifyPayment } from "../../api/payment";
 
-export default function Payments() {
-  const [payments, setPayments] = useState([]);
-  const [loading, setLoading] = useState(true);
+export default function Payment() {
+  const [amount, setAmount] = useState("");
+  const [orderId, setOrderId] = useState("");
+  const [msg, setMsg] = useState("");
 
-  useEffect(() => {
-    const fetchPayments = async () => {
-      try {
-        const res = await getMyPayments();
-        setPayments(res.data);
-      } catch (err) {
-        alert(err.response?.data?.message || "Error fetching payments");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchPayments();
-  }, []);
+  const handlePay = async () => {
+    const res = await makePayment({ orderId, amount });
+    setMsg(res.data.message || "Payment initiated");
+  };
 
-  if (loading) return <p className="text-center mt-6">Loading payments...</p>;
+  const handleVerify = async () => {
+    const res = await verifyPayment({ orderId, paymentId: "dummy_id" });
+    setMsg(res.data.message || "Payment verified");
+  };
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
-      <h2 className="text-2xl font-bold mb-4">💳 My Payments</h2>
-      {payments.length === 0 ? (
-        <p className="text-gray-600">No payments found.</p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse border">
-            <thead>
-              <tr className="bg-gray-200">
-                <th className="border px-3 py-2">Txn ID</th>
-                <th className="border px-3 py-2">Order</th>
-                <th className="border px-3 py-2">Amount</th>
-                <th className="border px-3 py-2">Method</th>
-                <th className="border px-3 py-2">Status</th>
-                <th className="border px-3 py-2">Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {payments.map((p) => (
-                <tr key={p._id} className="text-center">
-                  <td className="border px-3 py-2">{p._id.slice(-6)}</td>
-                  <td className="border px-3 py-2">
-                    {p.order
-                      ? `${p.order.pickupAddress} → ${p.order.dropAddress}`
-                      : "Order deleted"}
-                  </td>
-                  <td className="border px-3 py-2">₹{p.amount}</td>
-                  <td className="border px-3 py-2 uppercase">{p.method}</td>
-                  <td className="border px-3 py-2">
-                    <span
-                      className={`px-2 py-1 rounded text-sm ${
-                        p.status === "paid"
-                          ? "bg-green-200 text-green-800"
-                          : p.status === "failed"
-                          ? "bg-red-200 text-red-800"
-                          : "bg-yellow-200 text-yellow-800"
-                      }`}
-                    >
-                      {p.status}
-                    </span>
-                  </td>
-                  <td className="border px-3 py-2">
-                    {new Date(p.createdAt).toLocaleString()}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+    <div className="p-6 max-w-md mx-auto space-y-4">
+      <h2 className="text-xl font-bold">Payment</h2>
+      <input
+        value={orderId}
+        onChange={(e) => setOrderId(e.target.value)}
+        placeholder="Order ID"
+        className="w-full border p-2 rounded"
+      />
+      <input
+        value={amount}
+        onChange={(e) => setAmount(e.target.value)}
+        placeholder="Amount"
+        type="number"
+        className="w-full border p-2 rounded"
+      />
+      <button
+        onClick={handlePay}
+        className="bg-sky-600 text-white px-4 py-2 rounded w-full"
+      >
+        Pay Now
+      </button>
+      <button
+        onClick={handleVerify}
+        className="bg-emerald-600 text-white px-4 py-2 rounded w-full"
+      >
+        Verify Payment
+      </button>
+      {msg && <p className="text-blue-600">{msg}</p>}
     </div>
   );
 }
