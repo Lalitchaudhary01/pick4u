@@ -10,6 +10,7 @@ export const assignDriver = (id, data) =>
 export const cancelOrder = (id) => API.put(`/admin/orders/${id}/cancel`);
 
 // Drivers
+export const getDrivers = () => API.get("/admin/drivers"); // ✅ yeh missing tha
 export const approveDriver = (id) => API.put(`/admin/drivers/${id}/approve`);
 export const blockDriver = (id) => API.put(`/admin/drivers/${id}/block`);
 

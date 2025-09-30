@@ -32,48 +32,46 @@ export const updateProfile = async (req, res) => {
 };
 
 // Create order
+// Create order (FIXED for packageWeight schema)
 export const createOrder = async (req, res) => {
   try {
     const {
       pickupAddress,
       dropAddress,
-      package: pkg,
+      packageWeight, // ✅ flat field
       deliveryType,
-      coupon,
+      couponCode,
       distanceKm,
     } = req.body;
 
-    if (
-      !pickupAddress ||
-      !dropAddress ||
-      !pkg ||
-      !pkg.weight ||
-      !deliveryType
-    ) {
+    if (!pickupAddress || !dropAddress || !packageWeight || !deliveryType) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
     // Fare calculation
     const fare = calculateFare({
       distanceKm: distanceKm || 1,
-      weightKg: pkg.weight,
+      weightKg: packageWeight,
       deliveryType,
     });
 
     const order = new Order({
-      customer: req.user._id,
+      customer: req.user.id, // ✅ use id, not _id
       pickupAddress,
       dropAddress,
-      package: pkg,
+      packageWeight,
       deliveryType,
       fare,
-      coupon,
-      meta: { distanceKm },
+      couponCode,
     });
 
     await order.save();
-    res.status(201).json(order);
+    res.status(201).json({
+      message: "Order created successfully",
+      order,
+    });
   } catch (err) {
+    console.error("createOrder error:", err);
     res.status(500).json({ error: err.message });
   }
 };
