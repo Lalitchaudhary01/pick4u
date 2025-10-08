@@ -45,12 +45,19 @@ export const getAllOrders = async (req, res) => {
 export const assignDriver = async (req, res) => {
   try {
     const { driverId } = req.body;
+    const io = req.app.get("io"); // get socket instance
+
     const order = await Order.findByIdAndUpdate(
       req.params.id,
       { assignedDriver: driverId, status: "assigned" },
       { new: true }
-    );
+    ).populate("assignedDriver", "user name email");
+
     if (!order) return res.status(404).json({ message: "Order not found" });
+
+    // Notify driver in real-time
+    io.to(driverId).emit("new-assignment", order);
+
     res.json({ success: true, message: "Driver assigned", order });
   } catch (error) {
     res
@@ -96,24 +103,29 @@ export const getPendingKycDrivers = async (req, res) => {
     );
     res.json(drivers);
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        message: "Error fetching pending KYC drivers",
-        error: error.message,
-      });
+    res.status(500).json({
+      message: "Error fetching pending KYC drivers",
+      error: error.message,
+    });
   }
 };
 
 // Approve driver KYC
 export const approveDriver = async (req, res) => {
   try {
+    const io = req.app.get("io");
+
     const driver = await Driver.findByIdAndUpdate(
       req.params.id,
-      { kycStatus: "APPROVED" },
+      { kycStatus: "APPROVED", availability: true },
       { new: true }
-    );
+    ).populate("user", "name email");
+
     if (!driver) return res.status(404).json({ message: "Driver not found" });
+
+    // Notify driver of approval
+    io.to(driver._id.toString()).emit("kyc-approved", driver);
+
     res.json({ success: true, message: "Driver approved", driver });
   } catch (error) {
     res

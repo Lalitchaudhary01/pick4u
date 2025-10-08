@@ -32,6 +32,7 @@ import DriverDashboard from "./pages/driver/DriverDashboard";
 import Home from "./pages/Home";
 import KYCUpload from "./pages/driver/KYCUpload";
 import DriverKYCUpload from "./pages/driver/KYCUpload";
+import DriverProfile from "./pages/driver/DriverProfile";
 
 export default function App() {
   return (
@@ -63,6 +64,7 @@ export default function App() {
               <Route path="/driver/earnings" element={<Earnings />} />
               <Route path="/driver/reports" element={<DriverReports />} />
               <Route path="/driver/kyc" element={<DriverKYCUpload />} />
+              <Route path="/driver/profile" element={<DriverProfile />} />
             </Route>
 
             {/* ✅ Admin Protected */}

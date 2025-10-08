@@ -1,14 +1,21 @@
 import React, { useEffect, useState } from "react";
-import { getAllOrders, assignDriver, cancelAdminOrder } from "../../api";
+import {
+  getAllOrders,
+  assignDriver,
+  cancelAdminOrder,
+  getDrivers,
+} from "../../api/adminApi";
 import { useSocket } from "../../contexts/SocketContext";
 
 export default function AdminOrders() {
   const [orders, setOrders] = useState([]);
+  const [drivers, setDrivers] = useState([]);
   const [refresh, setRefresh] = useState(false);
   const socket = useSocket();
 
   useEffect(() => {
     loadOrders();
+    loadAvailableDrivers();
 
     if (socket) {
       socket.on("order-status", (data) => {
@@ -30,12 +37,27 @@ export default function AdminOrders() {
     setOrders(res.data);
   };
 
-  const handleAssign = async (id) => {
-    const driverId = prompt("Enter Driver ID to assign:");
-    if (driverId) {
-      await assignDriver(id, { driverId });
+  const loadAvailableDrivers = async () => {
+    try {
+      const res = await getDrivers(); // get all drivers
+      const availableDrivers = res.data.filter(
+        (d) => d.availability && d.kycStatus === "APPROVED"
+      );
+      setDrivers(availableDrivers);
+    } catch (err) {
+      console.error("Error fetching drivers:", err);
+    }
+  };
+
+  const handleAssign = async (orderId, driverId) => {
+    if (!driverId) return;
+    try {
+      await assignDriver(orderId, { driverId });
       alert("Driver assigned successfully!");
       setRefresh(!refresh);
+    } catch (err) {
+      console.error("Error assigning driver:", err);
+      alert("Failed to assign driver");
     }
   };
 
@@ -68,13 +90,23 @@ export default function AdminOrders() {
                 </p>
               )}
             </div>
-            <div className="space-x-2">
-              <button
-                onClick={() => handleAssign(o._id)}
-                className="px-3 py-1 bg-sky-600 text-white rounded"
-              >
-                Assign Driver
-              </button>
+            <div className="space-x-2 flex items-center">
+              {!o.assignedDriver && (
+                <select
+                  onChange={(e) => handleAssign(o._id, e.target.value)}
+                  className="px-2 py-1 border rounded"
+                  defaultValue=""
+                >
+                  <option value="" disabled>
+                    Assign Driver
+                  </option>
+                  {drivers.map((d) => (
+                    <option key={d._id} value={d._id}>
+                      {d.user.name} ({d.user.email})
+                    </option>
+                  ))}
+                </select>
+              )}
               <button
                 onClick={() => handleCancel(o._id)}
                 className="px-3 py-1 bg-red-600 text-white rounded"
