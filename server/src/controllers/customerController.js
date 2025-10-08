@@ -7,7 +7,8 @@ import Coupon from "../models/Coupon.js";
 // Get profile
 export const getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select("-password");
+    const userId = req.user.id || req.user._id; // JWT payload me id hai
+    const user = await User.findById(userId).select("-password");
     res.json(user);
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -15,6 +15,7 @@ import {
 } from "../controllers/driverController.js";
 
 import { authMiddleware } from "../middleware/authMiddleware.js";
+import { uploadKyc } from "../middleware/multer.js"; // multer middleware for KYC
 
 const router = express.Router();
 
@@ -22,7 +23,8 @@ const router = express.Router();
 router.use(authMiddleware);
 
 // KYC upload
-router.post("/kyc", kycUploadController);
+// multiple files (max 5) with field name "docs"
+router.post("/kyc", uploadKyc.array("docs", 5), kycUploadController);
 
 // Driver profile
 router.get("/profile", getDriverProfile);

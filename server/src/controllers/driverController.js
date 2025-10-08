@@ -2,16 +2,37 @@ import Driver from "../models/Driver.js";
 
 import Order from "../models/Order.js";
 
-// ------------------- Upload KYC -------------------
 export const kycUploadController = async (req, res) => {
   try {
-    const { docs } = req.body; // array of file paths
+    const files = req.files || [];
+    if (!files.length)
+      return res
+        .status(400)
+        .json({ success: false, message: "No files uploaded" });
 
-    let driver = await Driver.findOne({ user: req.user.id });
+    const { licenseNumber, aadharNumber } = req.body;
+    if (!licenseNumber || !aadharNumber)
+      return res
+        .status(400)
+        .json({ success: false, message: "License and Aadhar are required" });
+
+    const docs = files.map((f) => `/uploads/kyc/${f.filename}`);
+
+    const userId = req.user._id || req.user.id;
+    let driver = await Driver.findOne({ user: userId });
+
     if (!driver) {
-      driver = await Driver.create({ user: req.user.id, kycDocs: docs });
+      driver = await Driver.create({
+        user: userId,
+        kycDocs: docs,
+        licenseNumber,
+        aadharNumber,
+        kycStatus: "PENDING",
+      });
     } else {
       driver.kycDocs = docs;
+      driver.licenseNumber = licenseNumber;
+      driver.aadharNumber = aadharNumber;
       driver.kycStatus = "PENDING";
       await driver.save();
     }

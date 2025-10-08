@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { getAllOrders, assignDriver, cancelOrder } from "../../api";
+import { getAllOrders, assignDriver, cancelAdminOrder } from "../../api";
 import { useSocket } from "../../contexts/SocketContext";
 
 export default function AdminOrders() {
@@ -40,7 +40,7 @@ export default function AdminOrders() {
   };
 
   const handleCancel = async (id) => {
-    await cancelOrder(id);
+    await cancelAdminOrder(id);
     alert("Order cancelled!");
     setRefresh(!refresh);
   };

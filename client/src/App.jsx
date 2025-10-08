@@ -7,7 +7,7 @@ import {
 } from "react-router-dom";
 
 import ProtectedRoute from "./components/ProtectedRoute";
-import Navbar from "./components/Navbar"; // ✅ Navbar import
+import Navbar from "./components/Navbar";
 import { AuthProvider } from "./contexts/AuthContext";
 import { SocketProvider } from "./contexts/SocketContext";
 import Login from "./pages/auth/Login";
@@ -29,21 +29,23 @@ import FareCalculator from "./pages/core/FareCalculator";
 import Notifications from "./pages/core/Notifications";
 import Refund from "./pages/core/Refund";
 import DriverDashboard from "./pages/driver/DriverDashboard";
-
-// ...imports for pages
+import Home from "./pages/Home";
+import KYCUpload from "./pages/driver/KYCUpload";
+import DriverKYCUpload from "./pages/driver/KYCUpload";
 
 export default function App() {
   return (
     <AuthProvider>
       <SocketProvider>
         <Router>
-          <Navbar /> {/* ✅ Navbar always visible */}
+          <Navbar />
           <Routes>
-            {/* Public */}
+            {/* ✅ Public Routes */}
+            <Route path="/" element={<PublicHome />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
 
-            {/* Customer Protected */}
+            {/* ✅ Customer Protected */}
             <Route element={<ProtectedRoute allowedRoles={["customer"]} />}>
               <Route
                 path="/customer/dashboard"
@@ -54,24 +56,25 @@ export default function App() {
               <Route path="/customer/profile" element={<Profile />} />
             </Route>
 
-            {/* Driver Protected */}
+            {/* ✅ Driver Protected */}
             <Route element={<ProtectedRoute allowedRoles={["driver"]} />}>
               <Route path="/driver/dashboard" element={<DriverDashboard />} />
               <Route path="/driver/jobs" element={<JobsAssigned />} />
               <Route path="/driver/earnings" element={<Earnings />} />
               <Route path="/driver/reports" element={<DriverReports />} />
+              <Route path="/driver/kyc" element={<DriverKYCUpload />} />
             </Route>
 
-            {/* Admin Protected */}
+            {/* ✅ Admin Protected */}
             <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
               <Route path="/admin/orders" element={<AdminOrders />} />
               <Route path="/admin/drivers" element={<AdminDrivers />} />
               <Route path="/admin/customers" element={<AdminCustomers />} />
-              <Route path="/admin/reports" element={<AdminReports />} />
+              {/* <Route path="/admin/reports" element={<AdminReports />} /> */}
             </Route>
 
-            {/* Core Routes */}
+            {/* ✅ Core Routes (for all logged-in users) */}
             <Route
               element={
                 <ProtectedRoute
@@ -86,10 +89,28 @@ export default function App() {
             </Route>
 
             {/* Default */}
-            <Route path="*" element={<Navigate to="/login" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Router>
       </SocketProvider>
     </AuthProvider>
   );
+}
+
+// ✅ Handle / route based on login status
+function PublicHome() {
+  const token = localStorage.getItem("token");
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+
+  if (token && user.role) {
+    if (user.role === "customer")
+      return <Navigate to="/customer/dashboard" replace />;
+    if (user.role === "driver")
+      return <Navigate to="/driver/dashboard" replace />;
+    if (user.role === "admin")
+      return <Navigate to="/admin/dashboard" replace />;
+  }
+
+  // Not logged in → show Home
+  return <Home />;
 }

@@ -4,6 +4,7 @@ import User from "../models/User.js";
 import Coupon from "../models/Coupon.js";
 import FareConfig from "../models/FareConfig.js";
 
+// ---------------- Dashboard ----------------
 export const getDashboard = async (req, res) => {
   try {
     const totalOrders = await Order.countDocuments();
@@ -26,6 +27,7 @@ export const getDashboard = async (req, res) => {
   }
 };
 
+// ---------------- Orders ----------------
 export const getAllOrders = async (req, res) => {
   try {
     const orders = await Order.find().populate(
@@ -73,6 +75,37 @@ export const cancelOrder = async (req, res) => {
   }
 };
 
+// ---------------- Drivers ----------------
+export const getDrivers = async (req, res) => {
+  try {
+    const drivers = await Driver.find().populate("user", "name email role");
+    res.json(drivers);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Error fetching drivers", error: error.message });
+  }
+};
+
+// ✅ NEW: Pending KYC requests
+export const getPendingKycDrivers = async (req, res) => {
+  try {
+    const drivers = await Driver.find({ kycStatus: "PENDING" }).populate(
+      "user",
+      "name email role"
+    );
+    res.json(drivers);
+  } catch (error) {
+    res
+      .status(500)
+      .json({
+        message: "Error fetching pending KYC drivers",
+        error: error.message,
+      });
+  }
+};
+
+// Approve driver KYC
 export const approveDriver = async (req, res) => {
   try {
     const driver = await Driver.findByIdAndUpdate(
@@ -89,6 +122,24 @@ export const approveDriver = async (req, res) => {
   }
 };
 
+// Reject driver KYC
+export const rejectDriver = async (req, res) => {
+  try {
+    const driver = await Driver.findByIdAndUpdate(
+      req.params.id,
+      { kycStatus: "REJECTED", kycDocs: [] },
+      { new: true }
+    );
+    if (!driver) return res.status(404).json({ message: "Driver not found" });
+    res.json({ success: true, message: "Driver KYC rejected", driver });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Error rejecting driver", error: error.message });
+  }
+};
+
+// Block/unblock driver
 export const blockDriver = async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
@@ -97,7 +148,6 @@ export const blockDriver = async (req, res) => {
 
     user.isBlocked = !user.isBlocked;
     await user.save();
-
     res.json({
       success: true,
       message: `Driver ${user.isBlocked ? "blocked" : "unblocked"}`,
@@ -109,6 +159,7 @@ export const blockDriver = async (req, res) => {
   }
 };
 
+// ---------------- Customers ----------------
 export const getAllCustomers = async (req, res) => {
   try {
     const customers = await User.find({ role: "customer" });
@@ -128,7 +179,6 @@ export const suspendCustomer = async (req, res) => {
 
     user.isBlocked = !user.isBlocked;
     await user.save();
-
     res.json({
       success: true,
       message: `Customer ${user.isBlocked ? "suspended" : "activated"}`,
@@ -140,6 +190,7 @@ export const suspendCustomer = async (req, res) => {
   }
 };
 
+// ---------------- Coupons ----------------
 export const createCoupon = async (req, res) => {
   try {
     const coupon = await Coupon.create(req.body);
@@ -186,6 +237,7 @@ export const deleteCoupon = async (req, res) => {
   }
 };
 
+// ---------------- Fare Config ----------------
 export const getFareConfig = async (req, res) => {
   try {
     const config = await FareConfig.findOne();
@@ -213,13 +265,13 @@ export const updateFareConfig = async (req, res) => {
   }
 };
 
+// ---------------- Fare Calculation ----------------
 export const calculateFareWithConfig = async (
   distance,
   weight,
   deliveryType
 ) => {
   const config = (await FareConfig.findOne()) || {};
-
   let total =
     (config.baseFare || 50) +
     distance * (config.perKmRate || 8) +
@@ -229,6 +281,5 @@ export const calculateFareWithConfig = async (
   if (deliveryType === "same-day") total += config.sameDayDeliveryFee || 30;
 
   total = total * (config.peakHourMultiplier || 1.0);
-
   return Math.round(total);
 };

@@ -63,8 +63,9 @@ export const loginController = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Invalid credentials" });
 
+    // ✅ JWT payload updated to use _id
     const token = jwt.sign(
-      { id: user._id, role: user.role },
+      { _id: user._id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
@@ -74,7 +75,7 @@ export const loginController = async (req, res) => {
       message: "Login successful",
       token,
       user: {
-        id: user._id,
+        _id: user._id, // optional: frontend can use _id as well
         name: user.name,
         email: user.email,
         role: user.role,

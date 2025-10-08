@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { bookOrder, fareEstimate } from "../../api";
+import { createOrder, getFareEstimate } from "../../api";
 
 export default function BookOrder() {
   const [form, setForm] = useState({
@@ -35,7 +35,7 @@ export default function BookOrder() {
         package: { weight: Number(form.packageWeight) },
         deliveryType: form.deliveryType,
       };
-      const res = await fareEstimate(payload);
+      const res = await getFareEstimate(payload);
       setFare(res.data.fare);
       setMessage({ type: "success", text: "Fare calculated successfully!" });
     } catch (err) {
@@ -65,7 +65,7 @@ export default function BookOrder() {
         packageWeight: Number(form.packageWeight),
         deliveryType: form.deliveryType,
       };
-      const res = await bookOrder(payload);
+      const res = await createOrder(payload);
       setMessage({
         type: "success",
         text: res.data.message || "Order booked successfully!",
