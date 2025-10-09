@@ -29,12 +29,14 @@ export default function BookOrder() {
     try {
       setFareLoading(true);
       setMessage(null);
+
       const payload = {
         pickupAddress: form.pickupAddress,
         dropAddress: form.dropAddress,
-        package: { weight: Number(form.packageWeight) },
+        packageWeight: Number(form.packageWeight), // ✅ Correct key name
         deliveryType: form.deliveryType,
       };
+
       const res = await getFareEstimate(payload);
       setFare(res.data.fare);
       setMessage({ type: "success", text: "Fare calculated successfully!" });
@@ -59,19 +61,22 @@ export default function BookOrder() {
     try {
       setLoading(true);
       setMessage(null);
+
       const payload = {
         pickupAddress: form.pickupAddress,
         dropAddress: form.dropAddress,
         packageWeight: Number(form.packageWeight),
         deliveryType: form.deliveryType,
+        fare: fare, // ✅ send this to backend
       };
+
       const res = await createOrder(payload);
+
       setMessage({
         type: "success",
         text: res.data.message || "Order booked successfully!",
       });
 
-      // Reset form after successful booking
       setTimeout(() => {
         setForm({
           pickupAddress: "",

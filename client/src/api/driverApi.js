@@ -23,3 +23,15 @@ export const uploadProof = (id, data) =>
 export const getDriverEarnings = () => API.get("/driver/earnings");
 export const getReports = () => API.get("/driver/reports");
 export const getEarnings = () => API.get("/driver/my-earnings");
+
+// ---------------- Real-time Orders (New) ----------------
+// 📦 Fetch all available (unassigned) orders for the driver
+export const getDriverOrders = () => API.get("/driver/orders");
+
+// ✅ Accept an available order
+export const acceptOrder = (orderId) =>
+  API.post(`/driver/orders/${orderId}/accept`);
+
+// ❌ Reject an available order
+export const rejectOrder = (orderId) =>
+  API.post(`/driver/orders/${orderId}/reject`);

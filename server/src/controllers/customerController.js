@@ -1,13 +1,14 @@
 // src/controllers/customerController.js
 import Order from "../models/Order.js";
 import User from "../models/User.js";
-import { calculateFare } from "../utils/fareCalc.js";
+import Driver from "../models/Driver.js";
 import Coupon from "../models/Coupon.js";
+import { calculateFare } from "../utils/fareCalc.js";
 
-// Get profile
+// ---------------- Profile ----------------
 export const getProfile = async (req, res) => {
   try {
-    const userId = req.user.id || req.user._id; // JWT payload me id hai
+    const userId = req.user.id || req.user._id;
     const user = await User.findById(userId).select("-password");
     res.json(user);
   } catch (err) {
@@ -15,7 +16,6 @@ export const getProfile = async (req, res) => {
   }
 };
 
-// Update profile
 export const updateProfile = async (req, res) => {
   try {
     const updates = {};
@@ -32,70 +32,60 @@ export const updateProfile = async (req, res) => {
   }
 };
 
-// Create order
-// Create order (FIXED for packageWeight schema)
+// ---------------- Orders ----------------
 export const createOrder = async (req, res) => {
   try {
-    const {
-      pickupAddress,
-      dropAddress,
-      packageWeight, // ✅ flat field
-      deliveryType,
-      couponCode,
-      distanceKm,
-    } = req.body;
+    const { pickupAddress, dropAddress, packageWeight, deliveryType, fare } =
+      req.body;
 
-    if (!pickupAddress || !dropAddress || !packageWeight || !deliveryType) {
-      return res.status(400).json({ error: "Missing required fields" });
+    if (!pickupAddress || !dropAddress || !packageWeight) {
+      return res.status(400).json({ message: "Missing required fields" });
     }
 
-    // Fare calculation
-    const fare = calculateFare({
-      distanceKm: distanceKm || 1,
-      weightKg: packageWeight,
-      deliveryType,
-    });
-
-    const order = new Order({
-      customer: req.user.id, // ✅ use id, not _id
+    const newOrder = new Order({
+      customer: req.user._id,
       pickupAddress,
       dropAddress,
       packageWeight,
       deliveryType,
       fare,
-      couponCode,
+      status: "pending",
     });
 
-    await order.save();
-    res.status(201).json({
-      message: "Order created successfully",
-      order,
+    await newOrder.save();
+
+    // Notify admin / broadcast to drivers
+    const io = req.app.get("io");
+    const availableDrivers = await Driver.find({ availability: true });
+    availableDrivers.forEach((driver) => {
+      io.to(driver._id.toString()).emit("new-order", newOrder);
     });
+
+    res.status(201).json(newOrder);
   } catch (err) {
-    console.error("createOrder error:", err);
+    console.error("Order creation error:", err);
     res.status(500).json({ error: err.message });
   }
 };
 
-// Get all my orders
 export const getMyOrders = async (req, res) => {
   try {
     const orders = await Order.find({ customer: req.user._id })
       .sort({ createdAt: -1 })
-      .populate("driver", "name phone");
+      .populate("assignedDriver", "name phone"); // corrected field
     res.json(orders);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-// Get single order
 export const getOrderById = async (req, res) => {
   try {
     const order = await Order.findOne({
       _id: req.params.id,
       customer: req.user._id,
-    }).populate("driver", "name phone");
+    }).populate("assignedDriver", "name phone");
+
     if (!order) return res.status(404).json({ error: "Order not found" });
     res.json(order);
   } catch (err) {
@@ -103,7 +93,6 @@ export const getOrderById = async (req, res) => {
   }
 };
 
-// Cancel order
 export const cancelOrder = async (req, res) => {
   try {
     const order = await Order.findOne({
@@ -112,7 +101,7 @@ export const cancelOrder = async (req, res) => {
     });
     if (!order) return res.status(404).json({ error: "Order not found" });
 
-    if (["picked_up", "in_transit", "delivered"].includes(order.status)) {
+    if (["picked", "in-transit", "delivered"].includes(order.status)) {
       return res.status(400).json({ error: "Cannot cancel this order" });
     }
 
@@ -124,7 +113,7 @@ export const cancelOrder = async (req, res) => {
   }
 };
 
-// ------------------- Fare Estimate -------------------
+// ---------------- Fare Estimate ----------------
 export const fareEstimate = async (req, res) => {
   try {
     const { pickupAddress, dropAddress, packageWeight, deliveryType } =
@@ -134,32 +123,25 @@ export const fareEstimate = async (req, res) => {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    let distance = null;
+    let distance = 10; // fallback
     try {
       distance = await getDistanceInKm(pickupAddress, dropAddress);
     } catch (err) {
       console.warn("Google Maps API failed, fallback to 10km");
-      distance = 10;
     }
 
     const weightNum = parseFloat(packageWeight);
     const fare = calculateFare(distance, weightNum, deliveryType);
 
-    res.json({
-      success: true,
-      fare,
-      distance,
-      deliveryType,
-    });
-  } catch (error) {
-    console.error("fareEstimate:", error);
+    res.json({ success: true, fare, distance, deliveryType });
+  } catch (err) {
     res
       .status(500)
-      .json({ message: "Error calculating fare", error: error.message });
+      .json({ message: "Error calculating fare", error: err.message });
   }
 };
 
-// ------------------- Apply Coupon -------------------
+// ---------------- Coupons ----------------
 export const applyCoupon = async (req, res) => {
   try {
     const { couponCode, fare } = req.body;
@@ -169,50 +151,31 @@ export const applyCoupon = async (req, res) => {
       return res.status(404).json({ message: "Coupon not found or expired" });
     }
 
-    // Check expiry
     if (coupon.expiry && coupon.expiry < new Date()) {
       return res.status(400).json({ message: "Coupon expired" });
     }
 
-    // Discount calculation
     let discount = 0;
-    if (coupon.type === "percentage") {
-      discount = (fare * coupon.value) / 100;
-    } else if (coupon.type === "fixed") {
-      discount = coupon.value;
-    }
+    if (coupon.type === "percentage") discount = (fare * coupon.value) / 100;
+    else if (coupon.type === "fixed") discount = coupon.value;
 
     const finalFare = Math.max(fare - discount, 0);
 
-    res.json({
-      success: true,
-      coupon: coupon.code,
-      discount,
-      finalFare,
-    });
-  } catch (error) {
-    console.error("applyCoupon:", error);
+    res.json({ success: true, coupon: coupon.code, discount, finalFare });
+  } catch (err) {
     res
       .status(500)
-      .json({ message: "Error applying coupon", error: error.message });
+      .json({ message: "Error applying coupon", error: err.message });
   }
 };
 
-// ------------------- Remove Coupon -------------------
 export const removeCoupon = async (req, res) => {
   try {
     const { fare } = req.body;
-
-    // Just return original fare
-    res.json({
-      success: true,
-      message: "Coupon removed",
-      finalFare: fare,
-    });
-  } catch (error) {
-    console.error("removeCoupon:", error);
+    res.json({ success: true, message: "Coupon removed", finalFare: fare });
+  } catch (err) {
     res
       .status(500)
-      .json({ message: "Error removing coupon", error: error.message });
+      .json({ message: "Error removing coupon", error: err.message });
   }
 };

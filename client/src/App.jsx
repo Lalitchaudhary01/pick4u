@@ -33,6 +33,8 @@ import Home from "./pages/Home";
 import KYCUpload from "./pages/driver/KYCUpload";
 import DriverKYCUpload from "./pages/driver/KYCUpload";
 import DriverProfile from "./pages/driver/DriverProfile";
+import DriverOrders from "./pages/driver/DriverOrder";
+import OrderDetails from "./pages/customer/OrderDetails";
 
 export default function App() {
   return (
@@ -54,6 +56,7 @@ export default function App() {
               />
               <Route path="/customer/book" element={<BookOrder />} />
               <Route path="/customer/orders" element={<MyOrders />} />
+              <Route path="/customer/orders/:id" element={<OrderDetails />} />
               <Route path="/customer/profile" element={<Profile />} />
             </Route>
 
@@ -65,6 +68,7 @@ export default function App() {
               <Route path="/driver/reports" element={<DriverReports />} />
               <Route path="/driver/kyc" element={<DriverKYCUpload />} />
               <Route path="/driver/profile" element={<DriverProfile />} />
+              <Route path="/driver/orders" element={<DriverOrders />} />
             </Route>
 
             {/* ✅ Admin Protected */}
