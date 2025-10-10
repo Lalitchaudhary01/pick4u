@@ -20,14 +20,15 @@ const orderSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: [
-        "pending", // customer created order
-        "assigned", // admin/auto assigned driver
+        "pending", // created, waiting for driver
+        "assigned", // admin assigned driver
         "accepted", // driver accepted
         "rejected", // driver rejected
-        "picked", // driver picked package
-        "in-transit", // driver on way
-        "delivered", // order completed
-        "cancelled", // customer/admin cancelled
+        "arrived", // driver reached pickup
+        "picked-up", // package picked
+        "on-the-way", // en route to customer
+        "delivered", // completed
+        "cancelled", // cancelled by customer/admin
       ],
       default: "pending",
     },

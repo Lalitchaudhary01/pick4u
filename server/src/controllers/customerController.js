@@ -38,11 +38,7 @@ export const createOrder = async (req, res) => {
     const { pickupAddress, dropAddress, packageWeight, deliveryType, fare } =
       req.body;
 
-    if (!pickupAddress || !dropAddress || !packageWeight) {
-      return res.status(400).json({ message: "Missing required fields" });
-    }
-
-    const newOrder = new Order({
+    const newOrder = await Order.create({
       customer: req.user._id,
       pickupAddress,
       dropAddress,
@@ -52,18 +48,22 @@ export const createOrder = async (req, res) => {
       status: "pending",
     });
 
-    await newOrder.save();
-
-    // Notify admin / broadcast to drivers
     const io = req.app.get("io");
+
+    // Notify all available drivers
     const availableDrivers = await Driver.find({ availability: true });
     availableDrivers.forEach((driver) => {
       io.to(driver._id.toString()).emit("new-order", newOrder);
     });
 
+    // Notify all admins
+    io.to("admin").emit("new-order", newOrder);
+
+    // Customer can optionally see "pending"
+    io.to(req.user._id.toString()).emit("order-created", newOrder);
+
     res.status(201).json(newOrder);
   } catch (err) {
-    console.error("Order creation error:", err);
     res.status(500).json({ error: err.message });
   }
 };

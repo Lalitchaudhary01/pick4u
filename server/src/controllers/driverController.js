@@ -108,22 +108,28 @@ export const getAssignedJobs = async (req, res) => {
 };
 
 // ------------------- Accept Job -------------------
-// ------------------- Accept Job -------------------
 export const acceptJob = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id);
+    const order = await Order.findById(req.params.id).populate(
+      "customer assignedDriver",
+      "name email phone"
+    );
     if (!order) return res.status(404).json({ message: "Order not found" });
 
-    if (order.status !== "pending")
+    if (order.status !== "pending" && order.status !== "assigned")
       return res.status(400).json({ message: "Order already taken" });
 
+    order.status = "picked"; // or "assigned" depending on your flow
     order.assignedDriver = req.user.id;
-    order.status = "assigned";
     await order.save();
 
-    // Emit event via Socket.IO
     const io = req.app.get("io");
-    io.emit("orderUpdated", order);
+
+    // Notify customer
+    io.to(order.customer._id.toString()).emit("order-accepted", order);
+
+    // Notify admin
+    io.to("admin").emit("order-accepted", order);
 
     res.json({ success: true, message: "Job accepted", order });
   } catch (error) {
@@ -136,18 +142,23 @@ export const acceptJob = async (req, res) => {
 // ------------------- Reject Job -------------------
 export const rejectJob = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id);
+    const order = await Order.findById(req.params.id).populate(
+      "customer assignedDriver",
+      "name email phone"
+    );
     if (!order) return res.status(404).json({ message: "Order not found" });
 
-    if (order.assignedDriver?.toString() === req.user.id) {
-      order.assignedDriver = null;
-      order.status = "pending";
-      await order.save();
-    }
+    order.assignedDriver = null;
+    order.status = "pending";
+    await order.save();
 
-    // Emit event via Socket.IO
     const io = req.app.get("io");
-    io.emit("orderUpdated", order);
+
+    // Notify admin
+    io.to("admin").emit("order-rejected", order);
+
+    // Notify customer (optional)
+    io.to(order.customer._id.toString()).emit("order-rejected", order);
 
     res.json({ success: true, message: "Job rejected", order });
   } catch (error) {
@@ -259,5 +270,85 @@ export const getAllOrdersForDriver = async (req, res) => {
     res
       .status(500)
       .json({ message: "Error fetching orders", error: error.message });
+  }
+};
+
+export const markArrived = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id).populate("customer assignedDriver", "name email phone");
+    if (!order) return res.status(404).json({ message: "Order not found" });
+
+    order.status = "arrived";
+    await order.save();
+
+    const io = req.app.get("io");
+
+    // Notify customer
+    io.to(order.customer._id.toString()).emit("order-arrived", order);
+
+    // Notify admin
+    io.to("admin").emit("order-arrived", order);
+
+    res.json({ success: true, message: "Driver arrived at pickup", order });
+  } catch (error) {
+    res.status(500).json({ message: "Error updating status", error: error.message });
+  }
+};
+
+export const markPickedUp = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id).populate("customer assignedDriver", "name email phone");
+    if (!order) return res.status(404).json({ message: "Order not found" });
+
+    order.status = "picked-up";
+    await order.save();
+
+    const io = req.app.get("io");
+
+    io.to(order.customer._id.toString()).emit("order-picked", order);
+    io.to("admin").emit("order-picked", order);
+
+    res.json({ success: true, message: "Package picked up", order });
+  } catch (error) {
+    res.status(500).json({ message: "Error updating status", error: error.message });
+  }
+};
+
+export const markOnTheWay = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id).populate("customer assignedDriver", "name email phone");
+    if (!order) return res.status(404).json({ message: "Order not found" });
+
+    order.status = "on-the-way";
+    await order.save();
+
+    const io = req.app.get("io");
+
+    io.to(order.customer._id.toString()).emit("order-on-the-way", order);
+    io.to("admin").emit("order-on-the-way", order);
+
+    res.json({ success: true, message: "Driver is on the way", order });
+  } catch (error) {
+    res.status(500).json({ message: "Error updating status", error: error.message });
+  }
+};
+
+export const markDelivered = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id).populate("customer assignedDriver", "name email phone");
+    if (!order) return res.status(404).json({ message: "Order not found" });
+
+    order.status = "delivered";
+    order.deliveredAt = Date.now();
+    await order.save();
+
+    const io = req.app.get("io");
+
+    io.to(order.customer._id.toString()).emit("order-delivered", order);
+    io.to("admin").emit("order-delivered", order);
+
+    res.json({ success: true, message: "Order delivered successfully", order });
+  } catch (error) {
+    res.status(500).json({ message: "Error updating status", error: error.message });
   }
 };

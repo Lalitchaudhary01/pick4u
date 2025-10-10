@@ -45,18 +45,21 @@ export const getAllOrders = async (req, res) => {
 export const assignDriver = async (req, res) => {
   try {
     const { driverId } = req.body;
-    const io = req.app.get("io"); // get socket instance
+    const io = req.app.get("io");
 
     const order = await Order.findByIdAndUpdate(
       req.params.id,
       { assignedDriver: driverId, status: "assigned" },
       { new: true }
-    ).populate("assignedDriver", "user name email");
+    ).populate("customer assignedDriver", "name email phone");
 
     if (!order) return res.status(404).json({ message: "Order not found" });
 
-    // Notify driver in real-time
+    // Notify driver
     io.to(driverId).emit("new-assignment", order);
+
+    // Notify customer
+    io.to(order.customer._id.toString()).emit("driver-assigned", order);
 
     res.json({ success: true, message: "Driver assigned", order });
   } catch (error) {
