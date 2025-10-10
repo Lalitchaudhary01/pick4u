@@ -110,6 +110,10 @@ export const getAssignedJobs = async (req, res) => {
 // ------------------- Accept Job -------------------
 export const acceptJob = async (req, res) => {
   try {
+    const driver = await Driver.findOne({ user: req.user.id });
+    if (!driver.availability) {
+      return res.status(400).json({ message: "Driver not available" });
+    }
     const order = await Order.findById(req.params.id).populate(
       "customer assignedDriver",
       "name email phone"
@@ -119,7 +123,7 @@ export const acceptJob = async (req, res) => {
     if (order.status !== "pending" && order.status !== "assigned")
       return res.status(400).json({ message: "Order already taken" });
 
-    order.status = "picked"; // or "assigned" depending on your flow
+    order.status = "accepted"; // or "assigned" depending on your flow
     order.assignedDriver = req.user.id;
     await order.save();
 
@@ -275,7 +279,10 @@ export const getAllOrdersForDriver = async (req, res) => {
 
 export const markArrived = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id).populate("customer assignedDriver", "name email phone");
+    const order = await Order.findById(req.params.id).populate(
+      "customer assignedDriver",
+      "name email phone"
+    );
     if (!order) return res.status(404).json({ message: "Order not found" });
 
     order.status = "arrived";
@@ -291,13 +298,18 @@ export const markArrived = async (req, res) => {
 
     res.json({ success: true, message: "Driver arrived at pickup", order });
   } catch (error) {
-    res.status(500).json({ message: "Error updating status", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error updating status", error: error.message });
   }
 };
 
 export const markPickedUp = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id).populate("customer assignedDriver", "name email phone");
+    const order = await Order.findById(req.params.id).populate(
+      "customer assignedDriver",
+      "name email phone"
+    );
     if (!order) return res.status(404).json({ message: "Order not found" });
 
     order.status = "picked-up";
@@ -310,13 +322,18 @@ export const markPickedUp = async (req, res) => {
 
     res.json({ success: true, message: "Package picked up", order });
   } catch (error) {
-    res.status(500).json({ message: "Error updating status", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error updating status", error: error.message });
   }
 };
 
 export const markOnTheWay = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id).populate("customer assignedDriver", "name email phone");
+    const order = await Order.findById(req.params.id).populate(
+      "customer assignedDriver",
+      "name email phone"
+    );
     if (!order) return res.status(404).json({ message: "Order not found" });
 
     order.status = "on-the-way";
@@ -329,13 +346,18 @@ export const markOnTheWay = async (req, res) => {
 
     res.json({ success: true, message: "Driver is on the way", order });
   } catch (error) {
-    res.status(500).json({ message: "Error updating status", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error updating status", error: error.message });
   }
 };
 
 export const markDelivered = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id).populate("customer assignedDriver", "name email phone");
+    const order = await Order.findById(req.params.id).populate(
+      "customer assignedDriver",
+      "name email phone"
+    );
     if (!order) return res.status(404).json({ message: "Order not found" });
 
     order.status = "delivered";
@@ -349,6 +371,8 @@ export const markDelivered = async (req, res) => {
 
     res.json({ success: true, message: "Order delivered successfully", order });
   } catch (error) {
-    res.status(500).json({ message: "Error updating status", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error updating status", error: error.message });
   }
 };

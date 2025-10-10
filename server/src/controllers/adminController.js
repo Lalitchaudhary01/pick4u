@@ -69,7 +69,7 @@ export const assignDriver = async (req, res) => {
   }
 };
 
-export const cancelOrder = async (req, res) => {
+export const cancelOrderByAdmin = async (req, res) => {
   try {
     const order = await Order.findByIdAndUpdate(
       req.params.id,

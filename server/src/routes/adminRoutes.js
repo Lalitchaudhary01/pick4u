@@ -4,7 +4,7 @@ import {
   getDashboard,
   getAllOrders,
   assignDriver,
-  cancelOrder,
+  cancelOrderByAdmin,
   getDrivers,
   getPendingKycDrivers,
   approveDriver,
@@ -33,7 +33,7 @@ router.get("/dashboard", getDashboard);
 // ---------------- Orders ----------------
 router.get("/orders", getAllOrders);
 router.put("/orders/:id/assign", assignDriver);
-router.put("/orders/:id/cancel", cancelOrder);
+router.put("/orders/:id/cancel", cancelOrderByAdmin);
 
 // ---------------- Drivers ----------------
 router.get("/drivers", getDrivers); // all drivers
