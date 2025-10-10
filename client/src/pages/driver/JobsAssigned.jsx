@@ -1,44 +1,92 @@
 import React, { useEffect, useState } from "react";
+import { getAssignedJobs, acceptJob, rejectJob } from "../../api";
 import { Link } from "react-router-dom";
-import { useSocket } from "../../contexts/SocketContext";
 
 export default function JobsAssigned() {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
-  const socket = useSocket();
 
-  const API_BASE = "http://localhost:5000/api/driver"; // change this to your backend URL
+  // Dummy data
+  const dummyJobs = [
+    {
+      _id: "job123456",
+      pickupAddress: "Connaught Place, New Delhi",
+      dropAddress: "Karol Bagh, New Delhi",
+      packageWeight: 5,
+      deliveryType: "same-day",
+      fare: 250,
+      status: "assigned",
+      createdAt: new Date().toISOString(),
+      customer: { name: "Amit Sharma", phone: "+91 98765 43210" },
+    },
+    {
+      _id: "job123457",
+      pickupAddress: "Rajouri Garden, Delhi",
+      dropAddress: "Dwarka Sector 10, Delhi",
+      packageWeight: 3,
+      deliveryType: "instant",
+      fare: 180,
+      status: "assigned",
+      createdAt: new Date(Date.now() - 3600000).toISOString(),
+      customer: { name: "Priya Singh", phone: "+91 98765 43211" },
+    },
+    {
+      _id: "job123458",
+      pickupAddress: "Lajpat Nagar Market",
+      dropAddress: "Greater Kailash, Delhi",
+      packageWeight: 2,
+      deliveryType: "same-day",
+      fare: 150,
+      status: "accepted",
+      createdAt: new Date(Date.now() - 7200000).toISOString(),
+      customer: { name: "Rahul Verma", phone: "+91 98765 43212" },
+    },
+    {
+      _id: "job123459",
+      pickupAddress: "Nehru Place, Delhi",
+      dropAddress: "Noida Sector 62",
+      packageWeight: 8,
+      deliveryType: "instant",
+      fare: 350,
+      status: "in-transit",
+      createdAt: new Date(Date.now() - 10800000).toISOString(),
+      customer: { name: "Sneha Gupta", phone: "+91 98765 43213" },
+    },
+    {
+      _id: "job123460",
+      pickupAddress: "Saket, South Delhi",
+      dropAddress: "Vasant Kunj, Delhi",
+      packageWeight: 4,
+      deliveryType: "same-day",
+      fare: 200,
+      status: "delivered",
+      createdAt: new Date(Date.now() - 86400000).toISOString(),
+      customer: { name: "Vikram Malhotra", phone: "+91 98765 43214" },
+    },
+  ];
 
-  // ---------------- Fetch assigned jobs ----------------
+  useEffect(() => {
+    fetchJobs();
+  }, []);
+
   const fetchJobs = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE}/orders/assigned`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-      const data = await res.json();
-      setJobs(Array.isArray(data) ? data : []);
+      const res = await getAssignedJobs();
+      setJobs(res.data);
     } catch (err) {
-      console.error("Error fetching jobs:", err);
-      setJobs([]); // fallback empty
+      console.log("Using dummy data:", err);
+      setJobs(dummyJobs);
     } finally {
       setLoading(false);
     }
   };
 
-  // ---------------- Accept job ----------------
   const handleAccept = async (jobId) => {
     try {
-      await fetch(`${API_BASE}/orders/${jobId}/accept`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-      fetchJobs(); // refresh list
+      await acceptJob(jobId);
+      fetchJobs();
     } catch (err) {
       console.error("Error accepting job:", err);
       setJobs((prev) =>
@@ -47,15 +95,9 @@ export default function JobsAssigned() {
     }
   };
 
-  // ---------------- Reject job ----------------
   const handleReject = async (jobId) => {
     try {
-      await fetch(`${API_BASE}/orders/${jobId}/reject`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
+      await rejectJob(jobId);
       fetchJobs();
     } catch (err) {
       console.error("Error rejecting job:", err);
@@ -63,35 +105,6 @@ export default function JobsAssigned() {
     }
   };
 
-  // ---------------- Socket listeners ----------------
-  useEffect(() => {
-    fetchJobs();
-
-    if (socket) {
-      socket.on("new-order", (order) => {
-        // Only add if status is pending/assigned to this driver
-        if (!jobs.find((j) => j._id === order._id)) {
-          setJobs((prev) => [...prev, order]);
-        }
-      });
-
-      socket.on("order-updated", (updatedOrder) => {
-        setJobs((prev) =>
-          prev.map((j) => (j._id === updatedOrder._id ? updatedOrder : j))
-        );
-      });
-    }
-
-    return () => {
-      if (socket) {
-        socket.off("new-order");
-        socket.off("order-updated");
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [socket]);
-
-  // ---------------- Helpers ----------------
   const getStatusStyle = (status) => {
     const styles = {
       assigned: {
@@ -160,6 +173,25 @@ export default function JobsAssigned() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
+          <svg
+            className="w-12 h-12 animate-spin mx-auto mb-4 text-[#0500FF]"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            ></circle>
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+            ></path>
+          </svg>
           <p className="text-gray-500 font-medium">Loading jobs...</p>
         </div>
       </div>
@@ -167,8 +199,27 @@ export default function JobsAssigned() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div
+      className="min-h-screen bg-gray-50 p-6"
+      style={{ fontFamily: "'Poppins', 'Inter', sans-serif" }}
+    >
       <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-[#000000] to-[#0500FF] rounded-2xl p-8 mb-6 text-white shadow-xl">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">📋 All Jobs</h1>
+              <p className="text-gray-200">
+                Manage and track your delivery assignments
+              </p>
+            </div>
+            <div className="hidden md:block text-right">
+              <p className="text-sm text-gray-300">Total Jobs</p>
+              <p className="text-4xl font-bold">{jobs.length}</p>
+            </div>
+          </div>
+        </div>
+
         {/* Filter Tabs */}
         <div className="bg-white rounded-xl shadow-md p-2 mb-6 overflow-x-auto">
           <div className="flex gap-2 min-w-max">
@@ -206,7 +257,7 @@ export default function JobsAssigned() {
             </h3>
             <p className="text-gray-500">
               {filter === "all"
-                ? "Jobs will appear here when assigned"
+                ? "New jobs will appear here when assigned"
                 : `You don't have any ${filter} jobs at the moment`}
             </p>
           </div>
@@ -265,6 +316,40 @@ export default function JobsAssigned() {
                         </p>
                       </div>
                     </div>
+                  </div>
+
+                  {/* Job Details */}
+                  <div className="flex flex-wrap gap-6 text-sm mb-4 pb-4 border-b border-gray-100">
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-400">⚖️</span>
+                      <span className="text-gray-600">Weight:</span>
+                      <span className="font-semibold text-gray-800">
+                        {job.packageWeight} kg
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-400">🚀</span>
+                      <span className="text-gray-600">Type:</span>
+                      <span className="font-semibold text-gray-800 capitalize">
+                        {job.deliveryType}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-400">💰</span>
+                      <span className="text-gray-600">Fare:</span>
+                      <span className="font-bold text-[#0500FF] text-lg">
+                        ₹{job.fare}
+                      </span>
+                    </div>
+                    {job.customer && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-400">👤</span>
+                        <span className="text-gray-600">Customer:</span>
+                        <span className="font-semibold text-gray-800">
+                          {job.customer.name}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Action Buttons */}

@@ -1,49 +1,53 @@
-// routes/driverRoutes.js
+// src/routes/driverRoutes.js
 import express from "express";
 import {
   kycUploadController,
   getDriverProfile,
-  updateDriverProfile,
-  getPendingOrders,
+  updateProfile,
+  getDriverEarnings,
   getAssignedJobs,
-  acceptOrder,
-  rejectOrder,
+  acceptJob,
+  rejectJob,
   updateJobStatus,
   uploadProof,
   getEarnings,
   getReports,
+  getPendingOrders,
+  getAllOrdersForDriver,
 } from "../controllers/driverController.js";
+
 import { authMiddleware } from "../middleware/authMiddleware.js";
-import multer from "multer";
+import { uploadKyc } from "../middleware/multer.js"; // multer middleware for KYC
 
 const router = express.Router();
-const upload = multer({ dest: "uploads/kyc/" });
 
-// All routes protected by auth middleware
+// ✅ All routes are protected
 router.use(authMiddleware);
 
-// ---------------- KYC ----------------
-router.post("/kyc", upload.array("files"), kycUploadController);
+// KYC upload
+// multiple files (max 5) with field name "docs"
+router.post("/kyc", uploadKyc.array("docs", 5), kycUploadController);
 
-// ---------------- Profile ----------------
+// Driver profile
 router.get("/profile", getDriverProfile);
-router.patch("/profile", updateDriverProfile);
+router.put("/profile", updateProfile);
 
-// ---------------- Orders ----------------
-// View pending orders (not yet assigned)
-router.get("/orders/pending", getPendingOrders);
-// View assigned jobs
-router.get("/orders/assigned", getAssignedJobs);
-// Accept / Reject order
-router.post("/orders/:id/accept", acceptOrder);
-router.post("/orders/:id/reject", rejectOrder);
-// Update delivery status
-router.patch("/orders/:id/status", updateJobStatus);
-// Upload proof photo
-router.post("/orders/:id/proof", uploadProof);
+// Earnings & reports
+router.get("/earnings", getDriverEarnings); // total earnings
+router.get("/jobs", getAssignedJobs); // active jobs
+router.get("/reports", getReports); // completed jobs + total earnings
 
-// ---------------- Earnings & Reports ----------------
-router.get("/earnings", getEarnings);
-router.get("/reports", getReports);
+// Job actions
+router.post("/jobs/:id/accept", acceptJob);
+router.post("/jobs/:id/reject", rejectJob);
+router.put("/jobs/:id/status", updateJobStatus);
+
+// Upload proof for delivery
+router.post("/jobs/:id/proof", uploadProof);
+
+// Additional earnings route
+router.get("/my-earnings", getEarnings);
+router.get("/orders/pending", authMiddleware, getPendingOrders);
+router.get("/orders/all", authMiddleware, getAllOrdersForDriver);
 
 export default router;

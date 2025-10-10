@@ -1,9 +1,7 @@
-// controllers/driverController.js
 import Driver from "../models/Driver.js";
-import Order from "../models/Order.js";
-import User from "../models/User.js";
 
-// ------------------- KYC -------------------
+import Order from "../models/Order.js";
+
 export const kycUploadController = async (req, res) => {
   try {
     const files = req.files || [];
@@ -16,12 +14,13 @@ export const kycUploadController = async (req, res) => {
     if (!licenseNumber || !aadharNumber)
       return res
         .status(400)
-        .json({ success: false, message: "License and Aadhar required" });
+        .json({ success: false, message: "License and Aadhar are required" });
 
     const docs = files.map((f) => `/uploads/kyc/${f.filename}`);
-    const userId = req.user._id;
 
+    const userId = req.user._id || req.user.id;
     let driver = await Driver.findOne({ user: userId });
+
     if (!driver) {
       driver = await Driver.create({
         user: userId,
@@ -40,17 +39,18 @@ export const kycUploadController = async (req, res) => {
 
     res.json({ success: true, message: "KYC submitted", driver });
   } catch (error) {
-    console.error("KYC Error:", error);
+    console.error("uploadKyc:", error);
     res
       .status(500)
       .json({ message: "Error uploading KYC", error: error.message });
   }
 };
 
-// ------------------- Profile -------------------
+// Get driver profile
+// ------------------- Get Profile -------------------
 export const getDriverProfile = async (req, res) => {
   try {
-    const driver = await Driver.findOne({ user: req.user._id }).populate(
+    const driver = await Driver.findOne({ user: req.user.id }).populate(
       "user",
       "name email phone role"
     );
@@ -62,11 +62,12 @@ export const getDriverProfile = async (req, res) => {
   }
 };
 
-export const updateDriverProfile = async (req, res) => {
+// ------------------- Update Profile -------------------
+export const updateProfile = async (req, res) => {
   try {
     const { availability } = req.body;
     const driver = await Driver.findOneAndUpdate(
-      { user: req.user._id },
+      { user: req.user.id },
       { availability },
       { new: true }
     );
@@ -78,90 +79,92 @@ export const updateDriverProfile = async (req, res) => {
   }
 };
 
-// ------------------- Orders -------------------
-// Pending orders (available to accept)
-export const getPendingOrders = async (req, res) => {
+// Get earnings
+export const getDriverEarnings = async (req, res) => {
   try {
-    const orders = await Order.find({ status: "pending" });
-    res.json(orders);
-  } catch (error) {
+    const driver = await Driver.findOne({ user: req.user.id });
+    if (!driver) return res.status(404).json({ message: "Driver not found" });
+    res.json({ total: driver.earnings });
+  } catch (err) {
     res
       .status(500)
-      .json({ message: "Error fetching pending orders", error: error.message });
+      .json({ message: "Failed to fetch earnings", error: err.message });
   }
 };
 
-// Assigned jobs
+// ------------------- Get Assigned Jobs -------------------
 export const getAssignedJobs = async (req, res) => {
   try {
     const jobs = await Order.find({
-      assignedDriver: req.user._id,
+      assignedDriver: req.user.id,
       status: { $ne: "delivered" },
     });
     res.json(jobs);
   } catch (error) {
     res
       .status(500)
-      .json({ message: "Error fetching assigned jobs", error: error.message });
+      .json({ message: "Error fetching jobs", error: error.message });
   }
 };
 
-// Accept an order
-export const acceptOrder = async (req, res) => {
+// ------------------- Accept Job -------------------
+// ------------------- Accept Job -------------------
+export const acceptJob = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ message: "Order not found" });
-    if (order.status !== "pending")
-      return res.status(400).json({ message: "Order already assigned" });
 
-    order.assignedDriver = req.user._id;
+    if (order.status !== "pending")
+      return res.status(400).json({ message: "Order already taken" });
+
+    order.assignedDriver = req.user.id;
     order.status = "assigned";
     await order.save();
 
-    // Notify customer & admin via socket
+    // Emit event via Socket.IO
     const io = req.app.get("io");
-    io.to(order.customer.toString()).emit("order-accepted", order);
-    io.emit("order-updated", order);
+    io.emit("orderUpdated", order);
 
-    res.json({ success: true, message: "Order accepted", order });
+    res.json({ success: true, message: "Job accepted", order });
   } catch (error) {
     res
       .status(500)
-      .json({ message: "Error accepting order", error: error.message });
+      .json({ message: "Error accepting job", error: error.message });
   }
 };
 
-// Reject an order
-export const rejectOrder = async (req, res) => {
+// ------------------- Reject Job -------------------
+export const rejectJob = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ message: "Order not found" });
 
-    if (order.assignedDriver?.toString() === req.user._id.toString()) {
+    if (order.assignedDriver?.toString() === req.user.id) {
       order.assignedDriver = null;
       order.status = "pending";
       await order.save();
     }
 
+    // Emit event via Socket.IO
     const io = req.app.get("io");
-    io.emit("order-rejected", { orderId: order._id, driverId: req.user._id });
+    io.emit("orderUpdated", order);
 
-    res.json({ success: true, message: "Order rejected", order });
+    res.json({ success: true, message: "Job rejected", order });
   } catch (error) {
     res
       .status(500)
-      .json({ message: "Error rejecting order", error: error.message });
+      .json({ message: "Error rejecting job", error: error.message });
   }
 };
 
-// Update delivery status
+// ------------------- Update Delivery Status -------------------
 export const updateJobStatus = async (req, res) => {
   try {
     const { status } = req.body; // arrived, picked-up, delivered
     const order = await Order.findById(req.params.id);
 
     if (!order) return res.status(404).json({ message: "Order not found" });
-    if (order.assignedDriver?.toString() !== req.user._id.toString())
+    if (order.assignedDriver?.toString() !== req.user.id)
       return res.status(403).json({ message: "Not your job" });
 
     order.status = status;
@@ -175,14 +178,14 @@ export const updateJobStatus = async (req, res) => {
   }
 };
 
-// Upload proof photo
+// ------------------- Upload Proof -------------------
 export const uploadProof = async (req, res) => {
   try {
     const { photoUrl } = req.body;
     const order = await Order.findById(req.params.id);
 
     if (!order) return res.status(404).json({ message: "Order not found" });
-    if (order.assignedDriver?.toString() !== req.user._id.toString())
+    if (order.assignedDriver?.toString() !== req.user.id)
       return res.status(403).json({ message: "Not your job" });
 
     order.proofPhoto = photoUrl;
@@ -199,8 +202,8 @@ export const uploadProof = async (req, res) => {
 // ------------------- Earnings -------------------
 export const getEarnings = async (req, res) => {
   try {
-    const driver = await Driver.findOne({ user: req.user._id });
-    res.json({ earnings: driver?.earnings || 0 });
+    const driver = await Driver.findOne({ user: req.user.id });
+    res.json({ earnings: driver.earnings });
   } catch (error) {
     res
       .status(500)
@@ -212,7 +215,7 @@ export const getEarnings = async (req, res) => {
 export const getReports = async (req, res) => {
   try {
     const orders = await Order.find({
-      assignedDriver: req.user._id,
+      assignedDriver: req.user.id,
       status: "delivered",
     });
     const totalEarnings = orders.reduce((sum, o) => sum + o.fare, 0);
@@ -226,5 +229,35 @@ export const getReports = async (req, res) => {
     res
       .status(500)
       .json({ message: "Error fetching reports", error: error.message });
+  }
+};
+
+export const getPendingOrders = async (req, res) => {
+  try {
+    const orders = await Order.find({ status: "pending" }).populate(
+      "customer",
+      "name phone email"
+    );
+    res.json({ success: true, orders });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Error fetching pending orders", error: error.message });
+  }
+};
+
+export const getAllOrdersForDriver = async (req, res) => {
+  try {
+    // Fetch all orders with customer + assignedDriver info
+    const orders = await Order.find().populate(
+      "customer assignedDriver",
+      "name email phone"
+    );
+
+    res.json({ success: true, orders });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Error fetching orders", error: error.message });
   }
 };
