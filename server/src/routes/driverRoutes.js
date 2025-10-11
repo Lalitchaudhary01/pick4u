@@ -1,4 +1,3 @@
-// src/routes/driverRoutes.js
 import express from "express";
 import {
   kycUploadController,
@@ -8,9 +7,7 @@ import {
   getAssignedJobs,
   acceptJob,
   rejectJob,
-  updateJobStatus,
   uploadProof,
-  getEarnings,
   getReports,
   getPendingOrders,
   getAllOrdersForDriver,
@@ -21,7 +18,7 @@ import {
 } from "../controllers/driverController.js";
 
 import { authMiddleware } from "../middleware/authMiddleware.js";
-import { uploadKyc } from "../middleware/multer.js"; // multer middleware for KYC
+import { uploadKyc } from "../middleware/multer.js";
 
 const router = express.Router();
 
@@ -36,15 +33,14 @@ router.get("/profile", getDriverProfile);
 router.put("/profile", updateProfile);
 
 // ------------------- Earnings & Reports -------------------
-router.get("/earnings", getDriverEarnings); // total earnings
-router.get("/jobs", getAssignedJobs); // active jobs
-router.get("/reports", getReports); // completed jobs + total earnings
-router.get("/my-earnings", getEarnings);
+router.get("/earnings", getDriverEarnings);
+router.get("/jobs", getAssignedJobs);
+router.get("/reports", getReports);
+router.get("/my-earnings", getDriverEarnings);
 
 // ------------------- Jobs -------------------
 router.post("/jobs/:id/accept", acceptJob);
 router.post("/jobs/:id/reject", rejectJob);
-router.put("/jobs/:id/status", updateJobStatus);
 
 // ------------------- Delivery Status Updates -------------------
 router.put("/jobs/:id/arrived", markArrived);

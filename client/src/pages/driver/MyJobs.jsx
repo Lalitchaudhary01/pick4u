@@ -8,6 +8,7 @@ const MyJobs = () => {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("active");
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchMyJobs();
@@ -15,6 +16,7 @@ const MyJobs = () => {
 
   const fetchMyJobs = async () => {
     try {
+      setError(null);
       const token = localStorage.getItem("token");
       const response = await axios.get(
         "http://localhost:5000/api/driver/jobs",
@@ -22,26 +24,35 @@ const MyJobs = () => {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-      setJobs(response.data);
+
+      // Ensure jobs is always an array
+      setJobs(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error("Error fetching my jobs:", error);
+      setError("Failed to load jobs. Please try again.");
+      setJobs([]); // Set to empty array on error
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredJobs = jobs.filter((job) => {
-    if (filter === "active") {
-      return ["accepted", "arrived", "picked-up", "on-the-way"].includes(
-        job.status
-      );
-    } else if (filter === "completed") {
-      return job.status === "delivered";
-    }
-    return true;
-  });
+  // Safe filtering - ensure jobs is always treated as array
+  const filteredJobs = Array.isArray(jobs)
+    ? jobs.filter((job) => {
+        if (filter === "active") {
+          return ["accepted", "arrived", "picked-up", "on-the-way"].includes(
+            job.status
+          );
+        } else if (filter === "completed") {
+          return job.status === "delivered";
+        }
+        return true;
+      })
+    : [];
 
   const getStatusCount = (statusFilter) => {
+    if (!Array.isArray(jobs)) return 0;
+
     return jobs.filter((job) => {
       if (statusFilter === "active") {
         return ["accepted", "arrived", "picked-up", "on-the-way"].includes(
@@ -104,6 +115,28 @@ const MyJobs = () => {
     );
   }
 
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="bg-white rounded-lg shadow-md p-8 max-w-md w-full text-center">
+            <div className="text-6xl mb-4 text-red-500">⚠️</div>
+            <h3 className="text-xl font-semibold text-gray-800 mb-4">
+              Error Loading Jobs
+            </h3>
+            <p className="text-gray-600 mb-6">{error}</p>
+            <button
+              onClick={fetchMyJobs}
+              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <main className="flex-1 p-6">
@@ -131,7 +164,7 @@ const MyJobs = () => {
                 </div>
                 <div className="text-center">
                   <p className="text-2xl font-bold text-gray-600">
-                    {jobs.length}
+                    {Array.isArray(jobs) ? jobs.length : 0}
                   </p>
                   <p className="text-sm text-gray-600">Total</p>
                 </div>

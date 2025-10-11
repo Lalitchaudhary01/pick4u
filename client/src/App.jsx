@@ -45,6 +45,8 @@ import DriversList from "./pages/admin/DriverList";
 import PendingKyc from "./pages/admin/PendingKyc";
 import CustomersList from "./pages/admin/CustomersList";
 import CouponManagement from "./pages/admin/CouponManagement";
+import CustomerOrderTracking from "./pages/customer/CustomerOrderTracking";
+import DriverJobManagement from "./pages/driver/DriverJobManagement";
 
 export default function App() {
   return (
@@ -68,6 +70,10 @@ export default function App() {
               <Route path="/customer/orders" element={<OrderHistory />} />
               <Route path="/customer/orders/:id" element={<OrderDetails />} />
               <Route path="/customer/track/:id" element={<TrackOrder />} />
+              <Route
+                path="/customer/orders/:orderId/tracking"
+                element={<CustomerOrderTracking />}
+              />
               <Route path="/customer/profile" element={<Profile />} />
 
               <Route
@@ -92,6 +98,11 @@ export default function App() {
               <Route path="/driver/reports" element={<DriverReports />} />
 
               <Route path="/driver/profile" element={<DriverProfile />} />
+              <Route
+                path="/driver/current-job"
+                element={<DriverJobManagement />}
+              />
+
               <Route path="/driver/orders" element={<DriverOrders />} />
             </Route>
 
