@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom"; // ✅ Add this import
 import { useAuth } from "../../contexts/AuthContext";
 import OrderTable from "../../components/admin/OrderTable";
 import axios from "axios";
 
 const AllOrders = () => {
   const { user } = useAuth();
+  const navigate = useNavigate(); // ✅ Add navigate
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
@@ -89,8 +91,8 @@ const AllOrders = () => {
   };
 
   const handleViewDetails = (order) => {
-    // Navigate to order details page or show modal
-    alert(`View details for order ${order._id}`);
+    // ✅ Navigate to admin tracking page
+    navigate(`/admin/orders/${order._id}/tracking`);
   };
 
   const filteredOrders = orders.filter((order) => {
@@ -100,6 +102,13 @@ const AllOrders = () => {
 
   const getStatusCount = (status) => {
     return orders.filter((order) => order.status === status).length;
+  };
+
+  // ✅ Get active orders count (accepted, picked-up, on-the-way)
+  const getActiveOrdersCount = () => {
+    return orders.filter((order) =>
+      ["accepted", "arrived", "picked-up", "on-the-way"].includes(order.status)
+    ).length;
   };
 
   if (loading) {
@@ -139,9 +148,9 @@ const AllOrders = () => {
               <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => setFilter("all")}
-                  className={`px-4 py-2 rounded-lg font-medium ${
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                     filter === "all"
-                      ? "bg-blue-600 text-white"
+                      ? "bg-blue-600 text-white shadow-md"
                       : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   }`}
                 >
@@ -149,38 +158,72 @@ const AllOrders = () => {
                 </button>
                 <button
                   onClick={() => setFilter("pending")}
-                  className={`px-4 py-2 rounded-lg font-medium ${
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                     filter === "pending"
-                      ? "bg-yellow-600 text-white"
+                      ? "bg-yellow-600 text-white shadow-md"
                       : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   }`}
                 >
                   Pending ({getStatusCount("pending")})
                 </button>
                 <button
-                  onClick={() => setFilter("accepted")}
-                  className={`px-4 py-2 rounded-lg font-medium ${
-                    filter === "accepted"
-                      ? "bg-blue-600 text-white"
+                  onClick={() => setFilter("active")}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    filter === "active"
+                      ? "bg-green-600 text-white shadow-md"
                       : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   }`}
                 >
-                  Active (
-                  {getStatusCount("accepted") +
-                    getStatusCount("picked-up") +
-                    getStatusCount("on-the-way")}
-                  )
+                  Active ({getActiveOrdersCount()})
                 </button>
                 <button
                   onClick={() => setFilter("delivered")}
-                  className={`px-4 py-2 rounded-lg font-medium ${
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                     filter === "delivered"
-                      ? "bg-green-600 text-white"
+                      ? "bg-purple-600 text-white shadow-md"
                       : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   }`}
                 >
                   Delivered ({getStatusCount("delivered")})
                 </button>
+                <button
+                  onClick={() => setFilter("cancelled")}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    filter === "cancelled"
+                      ? "bg-red-600 text-white shadow-md"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  Cancelled ({getStatusCount("cancelled")})
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+              <div className="bg-blue-50 p-4 rounded-lg text-center">
+                <div className="text-2xl font-bold text-blue-600">
+                  {orders.length}
+                </div>
+                <div className="text-sm text-blue-700">Total Orders</div>
+              </div>
+              <div className="bg-yellow-50 p-4 rounded-lg text-center">
+                <div className="text-2xl font-bold text-yellow-600">
+                  {getStatusCount("pending")}
+                </div>
+                <div className="text-sm text-yellow-700">Pending</div>
+              </div>
+              <div className="bg-green-50 p-4 rounded-lg text-center">
+                <div className="text-2xl font-bold text-green-600">
+                  {getActiveOrdersCount()}
+                </div>
+                <div className="text-sm text-green-700">Active</div>
+              </div>
+              <div className="bg-purple-50 p-4 rounded-lg text-center">
+                <div className="text-2xl font-bold text-purple-600">
+                  {getStatusCount("delivered")}
+                </div>
+                <div className="text-sm text-purple-700">Delivered</div>
               </div>
             </div>
           </div>
@@ -190,6 +233,7 @@ const AllOrders = () => {
             orders={filteredOrders}
             onAssignDriver={handleAssignDriver}
             onViewDetails={handleViewDetails}
+            currentFilter={filter}
           />
 
           {/* Assign Driver Modal */}
@@ -212,8 +256,9 @@ const AllOrders = () => {
                     >
                       <option value="">Choose a driver</option>
                       {availableDrivers.map((driver) => (
-                        <option key={driver._id} value={driver._id}>
+                        <option key={driver._id} value={driver.user?._id}>
                           {driver.user?.name} - {driver.user?.phone}
+                          {driver.vehicleType ? ` (${driver.vehicleType})` : ""}
                         </option>
                       ))}
                     </select>
@@ -228,6 +273,23 @@ const AllOrders = () => {
                     </div>
                   )}
 
+                  {selectedOrder && (
+                    <div className="bg-gray-50 p-3 rounded-md mb-4">
+                      <h4 className="font-medium text-gray-800 mb-2">
+                        Order Details:
+                      </h4>
+                      <p className="text-sm text-gray-600">
+                        <strong>From:</strong> {selectedOrder.pickupAddress}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        <strong>To:</strong> {selectedOrder.dropAddress}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        <strong>Fare:</strong> ₹{selectedOrder.fare}
+                      </p>
+                    </div>
+                  )}
+
                   <div className="flex justify-end space-x-3 mt-6">
                     <button
                       onClick={() => {
@@ -235,14 +297,14 @@ const AllOrders = () => {
                         setSelectedOrder(null);
                         setSelectedDriver("");
                       }}
-                      className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700"
+                      className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition-colors"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={confirmAssignDriver}
                       disabled={!selectedDriver}
-                      className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50"
+                      className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                       Assign Driver
                     </button>

@@ -1,4 +1,3 @@
-// src/routes/adminRoutes.js
 import express from "express";
 import {
   getDashboard,
@@ -18,6 +17,9 @@ import {
   deleteCoupon,
   getFareConfig,
   updateFareConfig,
+  getOrderDetails,
+  assignDriverToOrder,
+  cancelOrderAdmin,
 } from "../controllers/adminController.js";
 
 import { authMiddleware } from "../middleware/authMiddleware.js";
@@ -32,8 +34,15 @@ router.get("/dashboard", getDashboard);
 
 // ---------------- Orders ----------------
 router.get("/orders", getAllOrders);
-router.put("/orders/:id/assign", assignDriver);
-router.put("/orders/:id/cancel", cancelOrderByAdmin);
+
+// ✅ FIXED: Clear route structure without conflicts
+router.get("/orders/:orderId", getOrderDetails); // Get single order
+router.post("/orders/:orderId/assign-driver", assignDriverToOrder); // Assign driver (NEW)
+router.put("/orders/:orderId/cancel", cancelOrderAdmin); // Cancel order (NEW)
+
+// ✅ OLD routes - comment out or remove (they conflict)
+// router.put("/orders/:id/assign", assignDriver); // ❌ CONFLICT - REMOVE
+// router.put("/orders/:id/cancel", cancelOrderByAdmin); // ❌ CONFLICT - REMOVE
 
 // ---------------- Drivers ----------------
 router.get("/drivers", getDrivers); // all drivers

@@ -275,36 +275,28 @@ export const getDriverEarnings = async (req, res) => {
 };
 
 // ------------------- Get Assigned Jobs -------------------
+// controllers/driverController.js
 export const getAssignedJobs = async (req, res) => {
   try {
+    console.log("🔍 Fetching assigned jobs for driver:", req.user._id);
+
     const jobs = await Order.find({
       assignedDriver: req.user._id,
-      status: {
-        $in: ["accepted", "assigned", "arrived", "picked-up", "on-the-way"],
-      },
+      status: { $ne: "delivered" }, // All except delivered
     })
       .populate("customer", "name phone email")
       .sort({ createdAt: -1 });
 
-    console.log(
-      `✅ Found ${jobs.length} assigned jobs for driver: ${req.user._id}`
-    );
+    console.log("✅ Found assigned jobs:", jobs.length);
+    console.log("📦 Jobs data:", jobs);
 
-    res.json({
-      success: true,
-      jobs: jobs.map((job) => ({
-        _id: job._id,
-        status: job.status,
-        pickupAddress: job.pickupAddress,
-        deliveryAddress: job.deliveryAddress,
-        fare: job.fare,
-        customer: job.customer,
-        createdAt: job.createdAt,
-        updatedAt: job.updatedAt,
-      })),
-    });
+    res.json(jobs); // ✅ Direct array return karo
   } catch (error) {
-    handleError(res, error, "fetching assigned jobs");
+    console.error("❌ Error fetching assigned jobs:", error);
+    res.status(500).json({
+      message: "Error fetching jobs",
+      error: error.message,
+    });
   }
 };
 
@@ -534,109 +526,198 @@ export const getPendingOrders = async (req, res) => {
 };
 
 // ------------------- Delivery Status Updates -------------------
-// In your driverController.js - update these functions:
-
 export const markArrived = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id).populate(
-      "customer assignedDriver",
-      "name email phone"
-    );
+    const { id } = req.params;
 
-    if (!order) return res.status(404).json({ message: "Order not found" });
-    if (order.assignedDriver?.toString() !== req.user._id.toString())
+    const order = await Order.findById(id)
+      .populate("customer", "name email phone")
+      .populate("assignedDriver", "name email phone");
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    if (order.assignedDriver?._id.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: "Not your job" });
+    }
 
-    // ✅ Use the method we created
-    await order.updateStatus("arrived");
+    order.status = "arrived";
+    order.arrivedAt = new Date();
+    await order.save();
 
     const io = req.app.get("io");
-    io.to(order.customer._id.toString()).emit("order-arrived", order);
-    io.to("admin").emit("order-arrived", order);
 
-    res.json({ success: true, message: "Driver arrived at pickup", order });
+    // Notify customer
+    io.to(order.customer._id.toString()).emit("order-arrived", {
+      order: order,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Notify admin
+    io.to("admin").emit("order-arrived", {
+      order: order,
+      timestamp: new Date().toISOString(),
+    });
+
+    res.json({
+      success: true,
+      message: "Driver arrived at pickup location",
+      order: {
+        _id: order._id,
+        status: order.status,
+        arrivedAt: order.arrivedAt,
+      },
+    });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error updating status", error: error.message });
+    handleError(res, error, "marking arrived");
   }
 };
 
 export const markPickedUp = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id).populate(
-      "customer assignedDriver",
-      "name email phone"
-    );
+    const { id } = req.params;
 
-    if (!order) return res.status(404).json({ message: "Order not found" });
-    if (order.assignedDriver?.toString() !== req.user._id.toString())
+    const order = await Order.findById(id)
+      .populate("customer", "name email phone")
+      .populate("assignedDriver", "name email phone");
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    if (order.assignedDriver?._id.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: "Not your job" });
+    }
 
-    // ✅ Use the method we created
-    await order.updateStatus("picked-up");
+    order.status = "picked-up";
+    order.pickedUpAt = new Date();
+    await order.save();
 
     const io = req.app.get("io");
-    io.to(order.customer._id.toString()).emit("order-picked", order);
-    io.to("admin").emit("order-picked", order);
 
-    res.json({ success: true, message: "Package picked up", order });
+    io.to(order.customer._id.toString()).emit("order-picked", {
+      order: order,
+      timestamp: new Date().toISOString(),
+    });
+
+    io.to("admin").emit("order-picked", {
+      order: order,
+      timestamp: new Date().toISOString(),
+    });
+
+    res.json({
+      success: true,
+      message: "Package picked up successfully",
+      order: {
+        _id: order._id,
+        status: order.status,
+        pickedUpAt: order.pickedUpAt,
+      },
+    });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error updating status", error: error.message });
+    handleError(res, error, "marking picked up");
   }
 };
 
 export const markOnTheWay = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id).populate(
-      "customer assignedDriver",
-      "name email phone"
-    );
+    const { id } = req.params;
 
-    if (!order) return res.status(404).json({ message: "Order not found" });
-    if (order.assignedDriver?.toString() !== req.user._id.toString())
+    const order = await Order.findById(id)
+      .populate("customer", "name email phone")
+      .populate("assignedDriver", "name email phone");
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    if (order.assignedDriver?._id.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: "Not your job" });
+    }
 
-    // ✅ Use the method we created
-    await order.updateStatus("on-the-way");
+    order.status = "on-the-way";
+    await order.save();
 
     const io = req.app.get("io");
-    io.to(order.customer._id.toString()).emit("order-on-the-way", order);
-    io.to("admin").emit("order-on-the-way", order);
 
-    res.json({ success: true, message: "Driver is on the way", order });
+    io.to(order.customer._id.toString()).emit("order-on-the-way", {
+      order: order,
+      timestamp: new Date().toISOString(),
+    });
+
+    io.to("admin").emit("order-on-the-way", {
+      order: order,
+      timestamp: new Date().toISOString(),
+    });
+
+    res.json({
+      success: true,
+      message: "Driver is on the way to delivery location",
+      order: {
+        _id: order._id,
+        status: order.status,
+      },
+    });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error updating status", error: error.message });
+    handleError(res, error, "marking on the way");
   }
 };
 
 export const markDelivered = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id).populate(
-      "customer assignedDriver",
-      "name email phone"
+    const { id } = req.params;
+
+    const order = await Order.findById(id)
+      .populate("customer", "name email phone")
+      .populate("assignedDriver", "name email phone");
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    if (order.assignedDriver?._id.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: "Not your job" });
+    }
+
+    order.status = "delivered";
+    order.deliveredAt = new Date();
+    await order.save();
+
+    // Update driver earnings
+    await Driver.findOneAndUpdate(
+      { user: req.user._id },
+      {
+        $inc: { earnings: order.fare || 0 },
+        $set: { updatedAt: new Date() },
+      }
     );
 
-    if (!order) return res.status(404).json({ message: "Order not found" });
-    if (order.assignedDriver?.toString() !== req.user._id.toString())
-      return res.status(403).json({ message: "Not your job" });
-
-    // ✅ Use the method we created
-    await order.updateStatus("delivered");
-
     const io = req.app.get("io");
-    io.to(order.customer._id.toString()).emit("order-delivered", order);
-    io.to("admin").emit("order-delivered", order);
 
-    res.json({ success: true, message: "Order delivered successfully", order });
+    io.to(order.customer._id.toString()).emit("order-delivered", {
+      order: order,
+      timestamp: new Date().toISOString(),
+    });
+
+    io.to("admin").emit("order-delivered", {
+      order: order,
+      timestamp: new Date().toISOString(),
+    });
+
+    res.json({
+      success: true,
+      message: "Order delivered successfully",
+      order: {
+        _id: order._id,
+        status: order.status,
+        deliveredAt: order.deliveredAt,
+        fare: order.fare,
+      },
+      earningsAdded: order.fare || 0,
+    });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error updating status", error: error.message });
+    handleError(res, error, "marking delivered");
   }
 };
 

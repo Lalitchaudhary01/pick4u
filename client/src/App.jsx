@@ -47,6 +47,7 @@ import CustomersList from "./pages/admin/CustomersList";
 import CouponManagement from "./pages/admin/CouponManagement";
 import CustomerOrderTracking from "./pages/customer/CustomerOrderTracking";
 import DriverJobManagement from "./pages/driver/DriverJobManagement";
+import AdminOrderTracking from "./pages/admin/AdminOrderTracking";
 
 export default function App() {
   return (
@@ -110,6 +111,11 @@ export default function App() {
             <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
               <Route path="/admin/orders" element={<AllOrders />} />
+
+              <Route
+                path="/admin/orders/:orderId/tracking"
+                element={<AdminOrderTracking />}
+              />
               {/* <Route path="/admin/orders" element={<AdminOrders />} /> */}
               {/* <Route path="/admin/drivers" element={<AdminDrivers />} /> */}
               <Route path="/admin/drivers" element={<DriversList />} />

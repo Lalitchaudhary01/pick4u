@@ -95,6 +95,13 @@ export default function Navbar() {
                 Jobs
               </Link>
               <Link
+                to="/driver/my-jobs"
+                className="font-medium hover:text-[#0500FF] transition-colors"
+                style={{ fontFamily: "'Poppins', 'Inter', sans-serif" }}
+              >
+                My-Jobs
+              </Link>
+              <Link
                 to="/driver/earnings"
                 className="font-medium hover:text-[#0500FF] transition-colors"
                 style={{ fontFamily: "'Poppins', 'Inter', sans-serif" }}
