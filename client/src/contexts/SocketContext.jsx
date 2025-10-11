@@ -1,42 +1,45 @@
-// src/context/SocketContext.js
-import React, { createContext, useContext, useEffect, useRef } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import { io } from "socket.io-client";
-import { useAuth } from "../hooks/useAuth"; // your auth hook
+import { useAuth } from "./AuthContext";
 
-const SocketContext = createContext(null);
+const SocketContext = createContext();
 
 export const SocketProvider = ({ children }) => {
+  const [socket, setSocket] = useState(null);
   const { user } = useAuth();
-  const socketRef = useRef(null);
 
   useEffect(() => {
-    const SOCKET_URL =
-      process.env.REACT_APP_SOCKET_URL || "http://localhost:5000";
+    if (user) {
+      const newSocket = io("http://localhost:5000", {
+        auth: {
+          token: localStorage.getItem("token"),
+        },
+      });
 
-    const socket = io(SOCKET_URL, {
-      auth: { token: localStorage.getItem("token") || "" },
-      transports: ["websocket"],
-    });
-    socketRef.current = socket;
+      setSocket(newSocket);
 
-    socket.on("connect", () => {
-      console.log("Socket connected:", socket.id);
-      if (user && user._id) {
-        socket.emit("join-customer-room", user._id);
+      // Join role-based room
+      if (user.role === "customer") {
+        newSocket.emit("join-customer-room", user._id);
+      } else if (user.role === "driver") {
+        newSocket.emit("join-driver-room", user._id);
+      } else if (user.role === "admin") {
+        newSocket.emit("join-admin-room");
       }
-    });
 
-    // Re-join when user changes (login/logout)
-    return () => {
-      if (socketRef.current) socketRef.current.disconnect();
-      socketRef.current = null;
-    };
+      return () => {
+        newSocket.disconnect();
+      };
+    } else {
+      if (socket) {
+        socket.disconnect();
+        setSocket(null);
+      }
+    }
   }, [user]);
 
   return (
-    <SocketContext.Provider value={socketRef.current}>
-      {children}
-    </SocketContext.Provider>
+    <SocketContext.Provider value={socket}>{children}</SocketContext.Provider>
   );
 };
 

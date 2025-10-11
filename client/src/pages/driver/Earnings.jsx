@@ -1,302 +1,330 @@
-import React, { useEffect, useState } from "react";
-import { getEarnings } from "../../api";
+import React, { useState, useEffect } from "react";
+import { useAuth } from "../../contexts/AuthContext";
+import axios from "axios";
 
-export default function Earnings() {
-  const [earnings, setEarnings] = useState(null);
+const Earnings = () => {
+  const { user } = useAuth();
+  const [earnings, setEarnings] = useState(0);
+  const [reports, setReports] = useState({
+    totalJobs: 0,
+    totalEarnings: 0,
+    orders: [],
+  });
+  const [timeRange, setTimeRange] = useState("all");
   const [loading, setLoading] = useState(true);
 
-  // Dummy earnings data
-  const dummyEarnings = {
-    total: 45680,
-    today: 1250,
-    thisWeek: 8950,
-    thisMonth: 32450,
-    lastMonth: 28900,
-    completedToday: 8,
-    completedWeek: 42,
-    completedMonth: 178,
-    avgPerDelivery: 257,
-    dailyBreakdown: [
-      { date: "Mon", amount: 1200, deliveries: 6 },
-      { date: "Tue", amount: 1450, deliveries: 7 },
-      { date: "Wed", amount: 980, deliveries: 5 },
-      { date: "Thu", amount: 1650, deliveries: 8 },
-      { date: "Fri", amount: 1820, deliveries: 9 },
-      { date: "Sat", amount: 1600, deliveries: 7 },
-      { date: "Today", amount: 1250, deliveries: 8 },
-    ],
-    recentPayouts: [
-      { date: "2024-10-01", amount: 28900, status: "completed" },
-      { date: "2024-09-01", amount: 31200, status: "completed" },
-      { date: "2024-08-01", amount: 27650, status: "completed" },
-    ],
-  };
-
   useEffect(() => {
-    fetchEarnings();
-  }, []);
+    fetchEarningsData();
+  }, [timeRange]);
 
-  const fetchEarnings = async () => {
+  const fetchEarningsData = async () => {
     try {
-      setLoading(true);
-      const res = await getEarnings();
-      setEarnings(res.data);
-    } catch (err) {
-      console.log("Using dummy data:", err);
-      setEarnings(dummyEarnings);
+      const token = localStorage.getItem("token");
+
+      // Fetch total earnings
+      const earningsResponse = await axios.get(
+        "http://localhost:5000/api/driver/earnings",
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      // Fetch detailed reports
+      const reportsResponse = await axios.get(
+        "http://localhost:5000/api/driver/reports",
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      setEarnings(earningsResponse.data.earnings || 0);
+      setReports(reportsResponse.data);
+    } catch (error) {
+      console.error("Error fetching earnings data:", error);
     } finally {
       setLoading(false);
     }
   };
 
+  const filteredOrders = reports.orders.filter((order) => {
+    if (timeRange === "all") return true;
+
+    const orderDate = new Date(order.deliveredAt || order.createdAt);
+    const now = new Date();
+    const diffTime = Math.abs(now - orderDate);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    switch (timeRange) {
+      case "today":
+        return diffDays <= 1;
+      case "week":
+        return diffDays <= 7;
+      case "month":
+        return diffDays <= 30;
+      default:
+        return true;
+    }
+  });
+
+  const calculateFilteredEarnings = () => {
+    return filteredOrders.reduce((total, order) => total + order.fare, 0);
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <svg
-            className="w-12 h-12 animate-spin mx-auto mb-4 text-[#0500FF]"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            ></circle>
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-            ></path>
-          </svg>
-          <p className="text-gray-500 font-medium">Loading earnings...</p>
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
         </div>
       </div>
     );
   }
 
-  const stats = [
-    {
-      label: "Total Earnings",
-      value: `₹${earnings?.total?.toLocaleString() || 0}`,
-      icon: "💰",
-      color: "bg-[#0500FF]",
-      textColor: "text-[#0500FF]",
-      change: "+12%",
-    },
-    {
-      label: "This Month",
-      value: `₹${earnings?.thisMonth?.toLocaleString() || 0}`,
-      icon: "📅",
-      color: "bg-[#0D3483]",
-      textColor: "text-[#0D3483]",
-      change: "+8%",
-    },
-    {
-      label: "This Week",
-      value: `₹${earnings?.thisWeek?.toLocaleString() || 0}`,
-      icon: "📊",
-      color: "bg-[#FFD426]",
-      textColor: "text-[#FFD426]",
-      change: "+15%",
-    },
-    {
-      label: "Today",
-      value: `₹${earnings?.today?.toLocaleString() || 0}`,
-      icon: "💵",
-      color: "bg-[#16C9FF]",
-      textColor: "text-[#16C9FF]",
-      change: `${earnings?.completedToday || 0} orders`,
-    },
-  ];
-
   return (
-    <div
-      className="min-h-screen bg-gray-50 p-6"
-      style={{ fontFamily: "'Poppins', 'Inter', sans-serif" }}
-    >
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-[#000000] to-[#0500FF] rounded-2xl p-8 mb-6 text-white shadow-xl">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-3xl font-bold mb-2">💰 My Earnings</h1>
-              <p className="text-gray-200">
-                Track your income and performance metrics
-              </p>
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <main className="flex-1 p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-800">My Earnings</h1>
+            <p className="text-gray-600">
+              Track your delivery earnings and performance
+            </p>
+          </div>
+
+          {/* Earnings Summary */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="flex items-center">
+                <div className="bg-green-100 p-3 rounded-lg">
+                  <span className="text-green-600 text-xl">💰</span>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm text-gray-600">Total Earnings</p>
+                  <p className="text-2xl font-bold text-gray-800">
+                    ₹{earnings}
+                  </p>
+                </div>
+              </div>
             </div>
-            <div className="hidden md:block text-right">
-              <p className="text-sm text-gray-300">Avg per Delivery</p>
-              <p className="text-3xl font-bold">
-                ₹{earnings?.avgPerDelivery || 0}
-              </p>
+
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="flex items-center">
+                <div className="bg-blue-100 p-3 rounded-lg">
+                  <span className="text-blue-600 text-xl">📦</span>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm text-gray-600">Total Deliveries</p>
+                  <p className="text-2xl font-bold text-gray-800">
+                    {reports.totalJobs}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="flex items-center">
+                <div className="bg-purple-100 p-3 rounded-lg">
+                  <span className="text-purple-600 text-xl">📊</span>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm text-gray-600">Average per Delivery</p>
+                  <p className="text-2xl font-bold text-gray-800">
+                    ₹
+                    {reports.totalJobs > 0
+                      ? Math.round(earnings / reports.totalJobs)
+                      : 0}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-          {stats.map((stat, idx) => (
-            <div
-              key={idx}
-              className="bg-white rounded-xl p-6 shadow-md hover:shadow-xl transition-all"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div
-                  className={`text-4xl p-3 rounded-lg ${stat.color} bg-opacity-10`}
-                >
-                  {stat.icon}
-                </div>
-                <span className="text-sm font-semibold text-green-600">
-                  {stat.change}
-                </span>
-              </div>
-              <h3 className="text-gray-500 text-sm font-medium mb-1">
-                {stat.label}
-              </h3>
-              <p className={`text-3xl font-bold ${stat.textColor}`}>
-                {stat.value}
-              </p>
-            </div>
-          ))}
-        </div>
-
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Weekly Breakdown */}
-          <div className="lg:col-span-2 bg-white rounded-xl shadow-md p-6">
-            <h2 className="text-xl font-bold text-gray-800 mb-6">
-              Weekly Breakdown
-            </h2>
-            <div className="space-y-3">
-              {earnings?.dailyBreakdown?.map((day, idx) => (
-                <div key={idx} className="flex items-center gap-4">
-                  <div className="w-20 text-sm font-semibold text-gray-600">
-                    {day.date}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-1">
-                      <div className="flex-1 bg-gray-200 rounded-full h-3 overflow-hidden">
-                        <div
-                          className="bg-gradient-to-r from-[#0500FF] to-[#16C9FF] h-full rounded-full transition-all"
-                          style={{ width: `${(day.amount / 2000) * 100}%` }}
-                        ></div>
-                      </div>
-                      <span className="text-sm font-bold text-[#0500FF] w-20 text-right">
-                        ₹{day.amount}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-500">
-                      {day.deliveries} deliveries
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-6 pt-6 border-t border-gray-100">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-bold text-gray-800">
-                  Performance Summary
+          {/* Time Range Filter */}
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800">
+                  Earnings Breakdown
                 </h3>
+                <p className="text-gray-600">Filter by time period</p>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 bg-blue-50 rounded-lg">
-                  <p className="text-sm text-gray-600 mb-1">Total Deliveries</p>
-                  <p className="text-2xl font-bold text-[#0500FF]">
-                    {earnings?.completedMonth || 0}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">This month</p>
-                </div>
-                <div className="p-4 bg-green-50 rounded-lg">
-                  <p className="text-sm text-gray-600 mb-1">Success Rate</p>
-                  <p className="text-2xl font-bold text-[#0D3483]">98.5%</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    On-time deliveries
-                  </p>
-                </div>
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setTimeRange("today")}
+                  className={`px-4 py-2 rounded-lg font-medium ${
+                    timeRange === "today"
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  Today
+                </button>
+                <button
+                  onClick={() => setTimeRange("week")}
+                  className={`px-4 py-2 rounded-lg font-medium ${
+                    timeRange === "week"
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  This Week
+                </button>
+                <button
+                  onClick={() => setTimeRange("month")}
+                  className={`px-4 py-2 rounded-lg font-medium ${
+                    timeRange === "month"
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  This Month
+                </button>
+                <button
+                  onClick={() => setTimeRange("all")}
+                  className={`px-4 py-2 rounded-lg font-medium ${
+                    timeRange === "all"
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  All Time
+                </button>
+              </div>
+            </div>
+
+            {/* Filtered Summary */}
+            <div className="mt-4 grid grid-cols-2 gap-4">
+              <div className="text-center p-4 bg-blue-50 rounded-lg">
+                <p className="text-2xl font-bold text-blue-600">
+                  {filteredOrders.length}
+                </p>
+                <p className="text-sm text-blue-700">Deliveries</p>
+              </div>
+              <div className="text-center p-4 bg-green-50 rounded-lg">
+                <p className="text-2xl font-bold text-green-600">
+                  ₹{calculateFilteredEarnings()}
+                </p>
+                <p className="text-sm text-green-700">Earnings</p>
               </div>
             </div>
           </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Quick Stats */}
-            <div className="bg-gradient-to-br from-[#0500FF] to-[#16C9FF] rounded-xl p-6 text-white shadow-md">
-              <h3 className="text-lg font-bold mb-4">This Week</h3>
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm opacity-90 mb-1">Earnings</p>
-                  <p className="text-3xl font-bold">
-                    ₹{earnings?.thisWeek?.toLocaleString() || 0}
-                  </p>
-                </div>
-                <div className="flex justify-between pt-4 border-t border-white border-opacity-20">
-                  <div>
-                    <p className="text-xs opacity-90">Deliveries</p>
-                    <p className="text-xl font-bold">
-                      {earnings?.completedWeek || 0}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs opacity-90">Avg/Day</p>
-                    <p className="text-xl font-bold">
-                      ₹{Math.round((earnings?.thisWeek || 0) / 7)}
-                    </p>
-                  </div>
-                </div>
-              </div>
+          {/* Earnings History */}
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-semibold text-gray-800">
+                Delivery History
+              </h2>
+              <p className="text-gray-600">
+                Showing {filteredOrders.length} of {reports.orders.length}{" "}
+                deliveries
+              </p>
             </div>
 
-            {/* Recent Payouts */}
-            <div className="bg-white rounded-xl shadow-md p-6">
-              <h3 className="text-lg font-bold text-gray-800 mb-4">
-                Recent Payouts
-              </h3>
-              <div className="space-y-3">
-                {earnings?.recentPayouts?.map((payout, idx) => (
+            {filteredOrders.length > 0 ? (
+              <div className="space-y-4">
+                {filteredOrders.map((order, index) => (
                   <div
-                    key={idx}
-                    className="flex items-center justify-between p-3 bg-green-50 rounded-lg"
+                    key={order._id}
+                    className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
                   >
-                    <div>
-                      <p className="text-sm font-semibold text-gray-800">
-                        {new Date(payout.date).toLocaleDateString("en-US", {
-                          month: "short",
-                          year: "numeric",
-                        })}
-                      </p>
-                      <p className="text-xs text-gray-500">Monthly payout</p>
+                    <div className="flex items-center space-x-4">
+                      <div className="bg-blue-100 text-blue-800 w-10 h-10 rounded-full flex items-center justify-center font-semibold">
+                        {index + 1}
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-800">
+                          Order #{order._id?.slice(-6)}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {new Date(
+                            order.deliveredAt || order.createdAt
+                          ).toLocaleDateString()}
+                        </p>
+                      </div>
                     </div>
+
                     <div className="text-right">
-                      <p className="text-lg font-bold text-[#0D3483]">
-                        ₹{payout.amount.toLocaleString()}
+                      <p className="text-lg font-bold text-green-600">
+                        ₹{order.fare}
                       </p>
-                      <span className="text-xs text-green-600 font-semibold">
-                        ✓ Paid
-                      </span>
+                      <p className="text-sm text-gray-600">
+                        {order.packageWeight} kg
+                      </p>
                     </div>
                   </div>
                 ))}
               </div>
+            ) : (
+              <div className="text-center py-8">
+                <div className="text-6xl mb-4">💰</div>
+                <h3 className="text-xl font-semibold text-gray-800 mb-2">
+                  No Earnings Yet
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  {timeRange === "all"
+                    ? "You haven't completed any deliveries yet."
+                    : `No earnings found for ${timeRange} period.`}
+                </p>
+                {timeRange === "all" && (
+                  <a
+                    href="/driver/jobs"
+                    className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-semibold"
+                  >
+                    Start Delivering
+                  </a>
+                )}
+              </div>
+            )}
+
+            {/* Total for period */}
+            {filteredOrders.length > 0 && (
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <div className="flex justify-between items-center">
+                  <p className="text-lg font-semibold text-gray-800">
+                    Total for {timeRange}
+                  </p>
+                  <p className="text-2xl font-bold text-green-600">
+                    ₹{calculateFilteredEarnings()}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Payment Information */}
+          <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+              <h4 className="font-semibold text-blue-800 mb-3">
+                💳 Payment Schedule
+              </h4>
+              <ul className="text-blue-700 space-y-2 text-sm">
+                <li>• Earnings updated in real-time</li>
+                <li>• Weekly payments every Monday</li>
+                <li>• Minimum payout: ₹500</li>
+                <li>• Payment method: Bank Transfer</li>
+                <li>• Contact support for payment issues</li>
+              </ul>
             </div>
 
-            {/* Withdraw CTA */}
-            <div className="bg-gradient-to-br from-[#FFD426] to-[#FF6B35] rounded-xl p-6 text-white shadow-md">
-              <h3 className="text-lg font-bold mb-2">💳 Withdraw Earnings</h3>
-              <p className="text-sm mb-4 opacity-90">
-                Transfer your earnings to your bank account
-              </p>
-              <button className="w-full bg-white text-[#FF6B35] font-semibold px-4 py-3 rounded-lg hover:bg-gray-100 transition-all">
-                Withdraw Now
-              </button>
+            <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+              <h4 className="font-semibold text-green-800 mb-3">
+                📈 Tips to Earn More
+              </h4>
+              <ul className="text-green-700 space-y-2 text-sm">
+                <li>• Accept high-value delivery jobs</li>
+                <li>• Maintain high rating and reliability</li>
+                <li>• Work during peak hours</li>
+                <li>• Complete deliveries quickly</li>
+                <li>• Provide excellent customer service</li>
+              </ul>
             </div>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
-}
+};
+
+export default Earnings;

@@ -1,226 +1,199 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
+
 import axios from "axios";
 
-export default function CustomerDashboard() {
-  const navigate = useNavigate();
-  const [user, setUser] = useState({});
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
+const CustomerDashboard = () => {
+  const { user } = useAuth();
+  const [recentOrders, setRecentOrders] = useState([]);
+  const [stats, setStats] = useState({
+    totalOrders: 0,
+    pendingOrders: 0,
+    deliveredOrders: 0,
+  });
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        if (!token) return navigate("/login");
+    fetchDashboardData();
+  }, []);
 
-        // Fetch user profile
-        const userRes = await axios.get("/api/customer/profile", {
+  const fetchDashboardData = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.get(
+        "http://localhost:5000/api/customer/orders",
+        {
           headers: { Authorization: `Bearer ${token}` },
-        });
-        setUser(userRes.data);
+        }
+      );
 
-        // Fetch all orders
-        const ordersRes = await axios.get("/api/customer/orders", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const ordersArray = Array.isArray(ordersRes.data) ? ordersRes.data : [];
-        setOrders(ordersArray);
-        setLoading(false);
-      } catch (err) {
-        console.error("Dashboard fetch error:", err);
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, [navigate]);
+      const orders = response.data.slice(0, 5); // Get recent 5 orders
+      setRecentOrders(orders);
 
-  // Categorize orders
-  const activeOrders = orders.filter((o) =>
-    ["pending", "assigned", "accepted", "picked", "in-transit"].includes(
-      o.status.toLowerCase()
-    )
-  );
-  const completedOrders = orders.filter((o) =>
-    ["delivered"].includes(o.status.toLowerCase())
-  );
-  const recentOrders = orders
-    .slice()
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-    .slice(0, 3);
-
-  // Dashboard stats (Active Orders = total orders)
-  const stats = [
-    {
-      label: "Active Orders",
-      value: orders.length, // total orders
-      icon: "📦",
-      color: "bg-[#0500FF]",
-      textColor: "text-[#0500FF]",
-    },
-    {
-      label: "Completed Orders",
-      value: completedOrders.length,
-      icon: "✅",
-      color: "bg-[#0D3483]",
-      textColor: "text-[#0D3483]",
-    },
-    {
-      label: "Total Spent",
-      value: `₹${orders.reduce((sum, o) => sum + (o.fare || 0), 0)}`,
-      icon: "💰",
-      color: "bg-[#FFD426]",
-      textColor: "text-[#FFD426]",
-    },
-    {
-      label: "Wallet Balance",
-      value: "₹850", // replace with API if available
-      icon: "💳",
-      color: "bg-[#16C9FF]",
-      textColor: "text-[#16C9FF]",
-    },
-  ];
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-500 text-lg">Loading dashboard...</p>
-      </div>
-    );
-  }
+      setStats({
+        totalOrders: response.data.length,
+        pendingOrders: response.data.filter(
+          (order) => order.status === "pending"
+        ).length,
+        deliveredOrders: response.data.filter(
+          (order) => order.status === "delivered"
+        ).length,
+      });
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-[#000000] to-[#0500FF] rounded-2xl p-8 mb-6 text-white shadow-xl">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-3xl font-bold mb-2">
-                Welcome back, {user.name || "Customer"}! 👋
-              </h1>
-              <p className="text-gray-200">
-                Manage your deliveries, track orders, and explore services
-              </p>
-            </div>
-            <div className="hidden md:block text-right">
-              <p className="text-sm text-gray-300">Member Since</p>
-              <p className="text-lg font-semibold">
-                {user.memberSince || "N/A"}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-          {stats.map((stat, idx) => (
-            <div
-              key={idx}
-              className="bg-white rounded-xl p-6 shadow-md hover:shadow-xl transition-all transform hover:-translate-y-1 cursor-pointer"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div
-                  className={`text-4xl p-3 rounded-lg ${stat.color} bg-opacity-10`}
-                >
-                  {stat.icon}
-                </div>
-                <svg
-                  className={`w-6 h-6 ${stat.textColor}`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
-                  />
-                </svg>
-              </div>
-              <h3 className="text-gray-500 text-sm font-medium mb-1">
-                {stat.label}
-              </h3>
-              <p className={`text-3xl font-bold ${stat.textColor}`}>
-                {stat.value}
-              </p>
-            </div>
-          ))}
-        </div>
-
-        {/* Recent Orders */}
-        <div className="lg:col-span-2 bg-white rounded-xl shadow-md p-6 mb-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold text-gray-800">Recent Orders</h2>
-            <button
-              onClick={() => navigate("/customer/orders")}
-              className="text-[#0500FF] hover:underline font-semibold text-sm"
-            >
-              View All →
-            </button>
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <main className="flex-1 p-6">
+        <div className="max-w-7xl mx-auto">
+          {/* Welcome Section */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-800">
+              Welcome back, {user?.name}!
+            </h1>
+            <p className="text-gray-600 mt-2">Ready to send a package?</p>
           </div>
 
-          <div className="space-y-4">
-            {recentOrders.map((order) => (
-              <div
-                key={order._id}
-                className="border-2 border-gray-100 rounded-lg p-4 hover:border-[#0500FF] transition-all cursor-pointer"
-              >
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <p className="font-bold text-gray-800">#{order._id}</p>
-                    <p className="text-xs text-gray-500">
-                      {new Date(order.createdAt).toLocaleString()}
-                    </p>
-                  </div>
-                  <span
-                    className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                      order.status === "delivered"
-                        ? "bg-green-100 text-green-800"
-                        : order.status === "pending"
-                        ? "bg-yellow-100 text-yellow-800"
-                        : "bg-blue-100 text-blue-800"
-                    }`}
-                  >
-                    {order.status}
-                  </span>
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="flex items-center">
+                <div className="bg-blue-100 p-3 rounded-lg">
+                  <span className="text-blue-600 text-xl">📦</span>
                 </div>
-
-                <div className="space-y-2 mb-3">
-                  <div className="flex items-start gap-2">
-                    <span className="text-green-600 font-bold mt-1">📍</span>
-                    <div>
-                      <p className="text-xs text-gray-500">Pickup</p>
-                      <p className="text-sm font-medium text-gray-700">
-                        {order.pickupAddress}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="text-red-600 font-bold mt-1">📍</span>
-                    <div>
-                      <p className="text-xs text-gray-500">Drop-off</p>
-                      <p className="text-sm font-medium text-gray-700">
-                        {order.dropAddress}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex justify-between items-center pt-3 border-t border-gray-100">
-                  <p className="text-lg font-bold text-[#0500FF]">
-                    ₹{order.fare || "N/A"}
+                <div className="ml-4">
+                  <p className="text-sm text-gray-600">Total Orders</p>
+                  <p className="text-2xl font-bold text-gray-800">
+                    {stats.totalOrders}
                   </p>
-                  <button className="text-[#0500FF] hover:bg-[#0500FF] hover:text-white px-4 py-2 rounded-lg font-semibold text-sm border-2 border-[#0500FF] transition-all">
-                    Track
-                  </button>
                 </div>
               </div>
-            ))}
+            </div>
+
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="flex items-center">
+                <div className="bg-yellow-100 p-3 rounded-lg">
+                  <span className="text-yellow-600 text-xl">⏳</span>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm text-gray-600">Pending</p>
+                  <p className="text-2xl font-bold text-gray-800">
+                    {stats.pendingOrders}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="flex items-center">
+                <div className="bg-green-100 p-3 rounded-lg">
+                  <span className="text-green-600 text-xl">✅</span>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm text-gray-600">Delivered</p>
+                  <p className="text-2xl font-bold text-gray-800">
+                    {stats.deliveredOrders}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            <Link
+              to="/customer/new-order"
+              className="bg-blue-600 text-white p-6 rounded-lg shadow-md hover:bg-blue-700 transition-colors flex flex-col items-center text-center"
+            >
+              <span className="text-3xl mb-3">🚚</span>
+              <h3 className="text-xl font-semibold mb-2">New Delivery</h3>
+              <p className="text-blue-100">Create a new delivery order</p>
+            </Link>
+
+            <Link
+              to="/customer/orders"
+              className="bg-green-600 text-white p-6 rounded-lg shadow-md hover:bg-green-700 transition-colors flex flex-col items-center text-center"
+            >
+              <span className="text-3xl mb-3">📋</span>
+              <h3 className="text-xl font-semibold mb-2">My Orders</h3>
+              <p className="text-green-100">View your order history</p>
+            </Link>
+
+            <Link
+              to="/customer/profile"
+              className="bg-purple-600 text-white p-6 rounded-lg shadow-md hover:bg-purple-700 transition-colors flex flex-col items-center text-center"
+            >
+              <span className="text-3xl mb-3">👤</span>
+              <h3 className="text-xl font-semibold mb-2">Profile</h3>
+              <p className="text-purple-100">Manage your account</p>
+            </Link>
+          </div>
+
+          {/* Recent Orders */}
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-semibold text-gray-800">
+                Recent Orders
+              </h2>
+              <Link
+                to="/customer/orders"
+                className="text-blue-600 hover:text-blue-500 font-medium"
+              >
+                View All
+              </Link>
+            </div>
+
+            {recentOrders.length > 0 ? (
+              <div className="space-y-4">
+                {recentOrders.map((order) => (
+                  <div
+                    key={order._id}
+                    className="flex justify-between items-center p-4 border border-gray-200 rounded-lg"
+                  >
+                    <div>
+                      <p className="font-medium text-gray-800">
+                        Order #{order._id?.slice(-6)}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {order.pickupAddress?.slice(0, 30)}... →{" "}
+                        {order.dropAddress?.slice(0, 30)}...
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-gray-800">₹{order.fare}</p>
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs ${
+                          order.status === "delivered"
+                            ? "bg-green-100 text-green-800"
+                            : order.status === "pending"
+                            ? "bg-yellow-100 text-yellow-800"
+                            : "bg-blue-100 text-blue-800"
+                        }`}
+                      >
+                        {order.status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-500 mb-4">No orders yet</p>
+                <Link
+                  to="/customer/new-order"
+                  className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Create Your First Order
+                </Link>
+              </div>
+            )}
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
-}
+};
+
+export default CustomerDashboard;

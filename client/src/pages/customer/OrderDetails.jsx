@@ -1,196 +1,231 @@
-import React, { useEffect, useState } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
+import OrderTracking from "../../components/customer/OrderTracking";
 import axios from "axios";
 
-export default function OrderDetails() {
-  const { id } = useParams(); // order id from route
+const OrderDetails = () => {
+  const { id } = useParams();
   const navigate = useNavigate();
-
+  const { user } = useAuth();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  const API_URL = "http://localhost:5000/api/customer"; // backend URL
-  const token = localStorage.getItem("token");
 
   useEffect(() => {
-    setLoading(true);
-    axios
-      .get(`${API_URL}/orders/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      .then((res) => {
-        setOrder(res.data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error(err.response || err);
-        setError("Failed to fetch order details.");
-        setLoading(false);
-      });
+    fetchOrderDetails();
   }, [id]);
 
-  const getStatusStyle = (status) => {
-    const styles = {
-      pending: { bg: "bg-yellow-100", text: "text-yellow-800", icon: "⏳" },
-      assigned: { bg: "bg-purple-100", text: "text-purple-800", icon: "📝" },
-      accepted: { bg: "bg-blue-100", text: "text-blue-800", icon: "👍" },
-      rejected: { bg: "bg-red-100", text: "text-red-800", icon: "❌" },
-      picked: { bg: "bg-indigo-100", text: "text-indigo-800", icon: "📦" },
-      "in-transit": { bg: "bg-blue-100", text: "text-blue-800", icon: "🚚" },
-      delivered: { bg: "bg-green-100", text: "text-green-800", icon: "✅" },
-      cancelled: { bg: "bg-red-100", text: "text-red-800", icon: "❌" },
-    };
-    return (
-      styles[status.toLowerCase()] || {
-        bg: "bg-gray-100",
-        text: "text-gray-800",
-        icon: "📦",
-      }
-    );
+  const fetchOrderDetails = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.get(
+        `http://localhost:5000/api/customer/orders/${id}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      setOrder(response.data);
+    } catch (error) {
+      console.error("Error fetching order details:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  if (loading)
+  const handleCancelOrder = async () => {
+    if (!window.confirm("Are you sure you want to cancel this order?")) return;
+
+    try {
+      const token = localStorage.getItem("token");
+      await axios.put(
+        `http://localhost:5000/api/customer/orders/${id}/cancel`,
+        {},
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      alert("Order cancelled successfully");
+      fetchOrderDetails(); // Refresh order data
+    } catch (error) {
+      alert(
+        "Error cancelling order: " +
+          (error.response?.data?.message || "Something went wrong")
+      );
+    }
+  };
+
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-gray-500">
-        Loading order details...
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
       </div>
     );
+  }
 
-  if (error)
+  if (!order) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center text-red-500">
-        {error}
-        <button
-          onClick={() => navigate(-1)}
-          className="mt-4 px-4 py-2 bg-[#0500FF] text-white rounded-lg"
-        >
-          Go Back
-        </button>
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">
+              Order Not Found
+            </h2>
+            <button
+              onClick={() => navigate("/customer/orders")}
+              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+            >
+              Back to Orders
+            </button>
+          </div>
+        </div>
       </div>
     );
-
-  const statusStyle = getStatusStyle(order.status);
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-md p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">Order Details</h1>
-          <span
-            className={`px-3 py-1 rounded-full text-xs font-semibold ${statusStyle.bg} ${statusStyle.text}`}
-          >
-            {statusStyle.icon} {order.status}
-          </span>
-        </div>
-
-        <div className="mb-4">
-          <h2 className="font-semibold text-gray-700">Order ID:</h2>
-          <p className="text-gray-800">{order._id}</p>
-        </div>
-
-        <div className="mb-4">
-          <h2 className="font-semibold text-gray-700">Created At:</h2>
-          <p className="text-gray-800">
-            {new Date(order.createdAt).toLocaleString()}
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          {/* Pickup */}
-          <div className="p-4 bg-green-50 rounded-lg">
-            <h3 className="text-gray-500 text-sm font-semibold mb-1">
-              Pickup Location
-            </h3>
-            <p className="text-gray-800">{order.pickupAddress}</p>
-          </div>
-
-          {/* Drop */}
-          <div className="p-4 bg-red-50 rounded-lg">
-            <h3 className="text-gray-500 text-sm font-semibold mb-1">
-              Drop Location
-            </h3>
-            <p className="text-gray-800">{order.dropAddress}</p>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-6 text-sm pt-4 border-t border-gray-100">
-          <div className="flex items-center gap-2">
-            <span className="text-gray-400">⚖️</span>
-            <span className="text-gray-600">Weight:</span>
-            <span className="font-semibold text-gray-800">
-              {order.packageWeight} kg
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="text-gray-400">🚀</span>
-            <span className="text-gray-600">Type:</span>
-            <span className="font-semibold text-gray-800 capitalize">
-              {order.deliveryType}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="text-gray-400">💰</span>
-            <span className="text-gray-600">Fare:</span>
-            <span className="font-bold text-[#0500FF] text-lg">
-              ₹{order.fare}
-            </span>
-          </div>
-
-          {order.assignedDriver && (
-            <div className="flex items-center gap-2">
-              <span className="text-gray-400">👤</span>
-              <span className="text-gray-600">Driver:</span>
-              <span className="font-semibold text-gray-800">
-                {order.assignedDriver.name}
-              </span>
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <main className="flex-1 p-6">
+        <div className="max-w-6xl mx-auto">
+          {/* Header */}
+          <div className="flex justify-between items-start mb-8">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-800">
+                Order Details
+              </h1>
+              <p className="text-gray-600">Order ID: {order._id}</p>
             </div>
-          )}
-        </div>
-
-        <div className="mt-6 flex gap-4">
-          {["pending", "assigned", "accepted"].includes(
-            order.status.toLowerCase()
-          ) && (
             <button
-              onClick={() => {
-                axios
-                  .put(
-                    `${API_URL}/orders/${id}/cancel`,
-                    {},
-                    {
-                      headers: { Authorization: `Bearer ${token}` },
-                    }
-                  )
-                  .then((res) => {
-                    alert("Order cancelled successfully");
-                    setOrder(res.data);
-                  })
-                  .catch((err) => {
-                    console.error(err.response || err);
-                    alert("Failed to cancel order");
-                  });
-              }}
-              className="px-6 py-2 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition-all"
+              onClick={() => navigate("/customer/orders")}
+              className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700"
             >
-              Cancel Order
+              Back to Orders
             </button>
-          )}
-          {order.status.toLowerCase() === "in-transit" && (
-            <button className="px-6 py-2 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition-all">
-              Track Live
-            </button>
-          )}
-          <Link
-            to="/customer/orders"
-            className="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg font-semibold hover:bg-gray-300 transition-all"
-          >
-            Back to Orders
-          </Link>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Order Tracking */}
+            <div>
+              <OrderTracking order={order} />
+            </div>
+
+            {/* Order Details */}
+            <div className="space-y-6">
+              {/* Order Summary */}
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h3 className="text-xl font-semibold mb-4 text-gray-800">
+                  Order Summary
+                </h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Status:</span>
+                    <span
+                      className={`px-3 py-1 rounded-full text-sm font-medium ${
+                        order.status === "pending"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : order.status === "accepted"
+                          ? "bg-blue-100 text-blue-800"
+                          : order.status === "delivered"
+                          ? "bg-green-100 text-green-800"
+                          : order.status === "cancelled"
+                          ? "bg-red-100 text-red-800"
+                          : "bg-gray-100 text-gray-800"
+                      }`}
+                    >
+                      {order.status?.toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Order Date:</span>
+                    <span className="text-gray-800">
+                      {new Date(order.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Package Weight:</span>
+                    <span className="text-gray-800">
+                      {order.packageWeight} kg
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Delivery Type:</span>
+                    <span className="text-gray-800">{order.deliveryType}</span>
+                  </div>
+                  <div className="flex justify-between text-lg font-semibold border-t pt-3">
+                    <span className="text-gray-800">Total Fare:</span>
+                    <span className="text-blue-600">₹{order.fare}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Address Information */}
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h3 className="text-xl font-semibold mb-4 text-gray-800">
+                  Address Information
+                </h3>
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <h4 className="font-medium text-gray-700 mb-2">
+                      Pickup Address
+                    </h4>
+                    <p className="text-gray-800 bg-gray-50 p-3 rounded-md">
+                      {order.pickupAddress}
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-700 mb-2">
+                      Delivery Address
+                    </h4>
+                    <p className="text-gray-800 bg-gray-50 p-3 rounded-md">
+                      {order.dropAddress}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Driver Information */}
+              {order.assignedDriver && (
+                <div className="bg-white rounded-lg shadow-md p-6">
+                  <h3 className="text-xl font-semibold mb-4 text-gray-800">
+                    Driver Information
+                  </h3>
+                  <div className="flex items-center space-x-4">
+                    <div className="bg-blue-100 text-blue-800 w-12 h-12 rounded-full flex items-center justify-center font-semibold">
+                      {order.assignedDriver.name?.charAt(0)}
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-800">
+                        {order.assignedDriver.name}
+                      </p>
+                      <p className="text-gray-600">
+                        {order.assignedDriver.phone}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Actions */}
+              {order.status === "pending" && (
+                <div className="bg-white rounded-lg shadow-md p-6">
+                  <h3 className="text-xl font-semibold mb-4 text-gray-800">
+                    Order Actions
+                  </h3>
+                  <button
+                    onClick={handleCancelOrder}
+                    className="w-full bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+                  >
+                    Cancel Order
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
+      </main>
     </div>
   );
-}
+};
+
+export default OrderDetails;

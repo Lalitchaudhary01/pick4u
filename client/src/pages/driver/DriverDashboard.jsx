@@ -1,256 +1,305 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
+import { useSocket } from "../../contexts/SocketContext"; // ✅ ADDED
 import axios from "axios";
-import { useSocket } from "../../contexts/SocketContext";
 
-export default function DriverDashboard() {
-  const navigate = useNavigate();
-  const socket = useSocket();
+const DriverDashboard = () => {
+  const { user } = useAuth();
+  const socket = useSocket(); // ✅ ADDED
 
-  const [driver, setDriver] = useState({});
-  const [jobs, setJobs] = useState([]);
+  const [stats, setStats] = useState({
+    totalEarnings: 0,
+    completedJobs: 0,
+    pendingJobs: 0,
+    activeJobs: 0,
+  });
+  const [recentJobs, setRecentJobs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [driverProfile, setDriverProfile] = useState(null); // ✅ ADDED
 
-  // Fetch Driver data and jobs
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        if (!token) return navigate("/login");
+    fetchDashboardData();
 
-        // Driver profile
-        const profileRes = await axios.get("/api/driver/profile", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setDriver(profileRes.data);
+    // ✅ Listen for KYC approval via socket
+    if (socket) {
+      socket.on("kyc-approved", (approvedDriver) => {
+        if (approvedDriver.user?._id === user?._id) {
+          alert("🎉 Your KYC has been approved! You can now accept jobs.");
+          fetchDashboardData(); // Refresh dashboard
+        }
+      });
+    }
 
-        // Assigned jobs
-        const jobsRes = await axios.get("/api/driver/jobs", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setJobs(Array.isArray(jobsRes.data) ? jobsRes.data : []);
-
-        setLoading(false);
-      } catch (err) {
-        console.error("Driver dashboard fetch error:", err);
-        setLoading(false);
+    return () => {
+      if (socket) {
+        socket.off("kyc-approved");
       }
     };
+  }, [socket, user]);
 
-    fetchData();
-  }, [navigate]);
-
-  // ---------------- Socket Real-time ----------------
-  useEffect(() => {
-    if (!socket || !driver?._id) return;
-    socket.emit("join-driver", driver._id);
-
-    socket.on("new-order", (order) => {
-      setJobs((prev) => [order, ...prev]);
-      alert("📦 New order received!");
-    });
-
-    return () => socket.off("new-order");
-  }, [socket, driver]);
-
-  // ---------------- Job Actions ----------------
-  const handleAcceptJob = async (jobId) => {
-    const token = localStorage.getItem("token");
+  const fetchDashboardData = async () => {
     try {
-      await axios.post(
-        `/api/driver/jobs/${jobId}/accept`,
-        {},
+      const token = localStorage.getItem("token");
+
+      // ✅ Fetch driver profile
+      const profileResponse = await axios.get(
+        "http://localhost:5000/api/driver/profile",
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setJobs((prev) =>
-        prev.map((j) => (j._id === jobId ? { ...j, status: "assigned" } : j))
-      );
-    } catch (err) {
-      console.error(err);
-    }
-  };
+      setDriverProfile(profileResponse.data);
 
-  const handleRejectJob = async (jobId) => {
-    const token = localStorage.getItem("token");
-    try {
-      await axios.post(
-        `/api/driver/jobs/${jobId}/reject`,
-        {},
+      // ✅ Fetch earnings
+      const earningsResponse = await axios.get(
+        "http://localhost:5000/api/driver/earnings",
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setJobs((prev) => prev.filter((j) => j._id !== jobId));
-    } catch (err) {
-      console.error(err);
+
+      // ✅ Fetch jobs
+      const jobsResponse = await axios.get(
+        "http://localhost:5000/api/driver/jobs",
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      // ✅ Fetch reports
+      const reportsResponse = await axios.get(
+        "http://localhost:5000/api/driver/reports",
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setStats({
+        totalEarnings: earningsResponse.data.earnings || 0,
+        completedJobs: reportsResponse.data.totalJobs || 0,
+        pendingJobs: jobsResponse.data.length || 0,
+        activeJobs: jobsResponse.data.filter((job) =>
+          ["accepted", "picked-up", "on-the-way"].includes(job.status)
+        ).length,
+      });
+
+      setRecentJobs(jobsResponse.data.slice(0, 3));
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+    } finally {
+      setLoading(false);
     }
   };
-
-  // Categorize jobs
-  const pendingJobs = jobs.filter(
-    (j) => j.status === "pending" || j.status === "assigned"
-  );
-  const activeJobs = jobs.filter((j) =>
-    ["assigned", "in-transit"].includes(j.status)
-  );
-  const completedJobs = jobs.filter((j) => j.status === "delivered");
-  const recentJobs = jobs
-    .slice()
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-    .slice(0, 3);
-
-  // Stats
-  const stats = [
-    {
-      label: "Active Jobs",
-      value: activeJobs.length,
-      icon: "📦",
-      color: "bg-blue-100",
-      textColor: "text-blue-800",
-    },
-    {
-      label: "Pending Jobs",
-      value: pendingJobs.length,
-      icon: "⏳",
-      color: "bg-yellow-100",
-      textColor: "text-yellow-800",
-    },
-    {
-      label: "Completed Jobs",
-      value: completedJobs.length,
-      icon: "✅",
-      color: "bg-green-100",
-      textColor: "text-green-800",
-    },
-  ];
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-500 text-lg">Loading dashboard...</p>
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-black to-blue-700 rounded-2xl p-8 mb-6 text-white shadow-xl">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-3xl font-bold mb-2">
-                Welcome, {driver?.user?.name || driver.name} 👋
-              </h1>
-              <p className="text-gray-200">
-                Manage your deliveries, track jobs, and update status
-              </p>
-            </div>
-            <div className="hidden md:block text-right">
-              <p className="text-sm text-gray-300">Member Since</p>
-              <p className="text-lg font-semibold">
-                {driver?.createdAt
-                  ? new Date(driver.createdAt).toLocaleDateString()
-                  : "N/A"}
-              </p>
-            </div>
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <main className="flex-1 p-6">
+        <div className="max-w-7xl mx-auto">
+          {/* Welcome Section */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-800">
+              Welcome, {user?.name}!
+            </h1>
+            <p className="text-gray-600 mt-2">
+              {driverProfile?.kycStatus === "APPROVED"
+                ? "Ready to accept new delivery jobs?"
+                : "Complete KYC to start accepting jobs."}
+            </p>
           </div>
-        </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-          {stats.map((stat, idx) => (
-            <div
-              key={idx}
-              className="bg-white rounded-xl p-6 shadow-md hover:shadow-xl transition-all cursor-pointer"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className={`text-4xl p-3 rounded-lg ${stat.color}`}>
-                  {stat.icon}
-                </div>
-              </div>
-              <h3 className="text-gray-500 text-sm font-medium mb-1">
-                {stat.label}
-              </h3>
-              <p className={`text-3xl font-bold ${stat.textColor}`}>
-                {stat.value}
-              </p>
-            </div>
-          ))}
-        </div>
-
-        {/* Recent Jobs */}
-        <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold text-gray-800">Recent Jobs</h2>
-            <button
-              onClick={() => navigate("/driver/jobs")}
-              className="text-blue-700 hover:underline font-semibold text-sm"
-            >
-              View All →
-            </button>
-          </div>
-          <div className="space-y-4">
-            {recentJobs.map((job) => (
-              <div
-                key={job._id}
-                className="border-2 border-gray-100 rounded-lg p-4 hover:border-blue-700 transition-all cursor-pointer"
-              >
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <p className="font-bold text-gray-800">
-                      #{job._id.slice(-6)}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {new Date(job.createdAt).toLocaleString()}
-                    </p>
-                  </div>
-                  <span
-                    className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                      job.status === "delivered"
-                        ? "bg-green-100 text-green-800"
-                        : job.status === "pending"
-                        ? "bg-yellow-100 text-yellow-800"
-                        : "bg-blue-100 text-blue-800"
-                    }`}
-                  >
-                    {job.status}
-                  </span>
-                </div>
-                <div className="space-y-2 mb-3">
-                  <div className="flex items-start gap-2">
-                    <span className="text-green-600 font-bold mt-1">📍</span>
-                    <div>
-                      <p className="text-xs text-gray-500">Pickup</p>
-                      <p className="text-sm font-medium text-gray-700">
-                        {job.pickupAddress}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="text-red-600 font-bold mt-1">📍</span>
-                    <div>
-                      <p className="text-xs text-gray-500">Drop-off</p>
-                      <p className="text-sm font-medium text-gray-700">
-                        {job.dropAddress}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex justify-between items-center pt-3 border-t border-gray-100">
-                  <p className="text-lg font-bold text-blue-700">
-                    ₹{job.fare || "N/A"}
+          {/* ✅ Improved KYC Status */}
+          {driverProfile?.kycStatus !== "APPROVED" && (
+            <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-yellow-800 mb-1">
+                    {driverProfile?.kycStatus === "PENDING"
+                      ? "KYC Under Review ⏳"
+                      : "KYC Verification Required 📋"}
+                  </h3>
+                  <p className="text-yellow-700">
+                    {driverProfile?.kycStatus === "PENDING"
+                      ? "Your documents are under review. You will be notified once approved."
+                      : "Complete KYC verification to start accepting delivery jobs."}
                   </p>
-                  <button
-                    onClick={() => navigate(`/driver/jobs/${job._id}`)}
-                    className="text-blue-700 hover:bg-blue-700 hover:text-white px-4 py-2 rounded-lg font-semibold text-sm border-2 border-blue-700 transition-all"
-                  >
-                    Update Status
-                  </button>
+                </div>
+                <Link
+                  to="/driver/kyc"
+                  className="bg-yellow-600 text-white px-6 py-2 rounded-lg hover:bg-yellow-700 transition-colors font-semibold"
+                >
+                  {driverProfile?.kycStatus === "PENDING"
+                    ? "Check Status"
+                    : "Complete KYC"}
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {/* ✅ KYC Approved Banner */}
+          {driverProfile?.kycStatus === "APPROVED" && (
+            <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
+              <div className="flex items-center">
+                <span className="text-green-600 text-xl mr-3">✅</span>
+                <div>
+                  <h3 className="font-semibold text-green-800">
+                    KYC Approved!
+                  </h3>
+                  <p className="text-green-700">
+                    You are now eligible to accept delivery jobs.
+                  </p>
                 </div>
               </div>
-            ))}
+            </div>
+          )}
+
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <StatCard
+              icon="💰"
+              title="Total Earnings"
+              value={`₹${stats.totalEarnings}`}
+              color="green"
+            />
+            <StatCard
+              icon="✅"
+              title="Completed Jobs"
+              value={stats.completedJobs}
+              color="blue"
+            />
+            <StatCard
+              icon="⏳"
+              title="Active Jobs"
+              value={stats.activeJobs}
+              color="yellow"
+            />
+            <StatCard
+              icon="📦"
+              title="Available Jobs"
+              value={stats.pendingJobs}
+              color="purple"
+            />
+          </div>
+
+          {/* Quick Actions */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            <QuickAction
+              to="/driver/jobs"
+              bg="bg-blue-600"
+              hover="hover:bg-blue-700"
+              emoji="🚚"
+              title="Available Jobs"
+              desc="Accept new delivery requests"
+            />
+            <QuickAction
+              to="/driver/my-jobs"
+              bg="bg-green-600"
+              hover="hover:bg-green-700"
+              emoji="📋"
+              title="My Jobs"
+              desc="View your assigned jobs"
+            />
+            <QuickAction
+              to="/driver/earnings"
+              bg="bg-purple-600"
+              hover="hover:bg-purple-700"
+              emoji="💰"
+              title="Earnings"
+              desc="View your earnings report"
+            />
+          </div>
+
+          {/* Recent Jobs */}
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-semibold text-gray-800">
+                Recent Jobs
+              </h2>
+              <Link
+                to="/driver/my-jobs"
+                className="text-blue-600 hover:text-blue-500 font-medium"
+              >
+                View All
+              </Link>
+            </div>
+
+            {recentJobs.length > 0 ? (
+              <div className="space-y-4">
+                {recentJobs.map((job) => (
+                  <div
+                    key={job._id}
+                    className="flex justify-between items-center p-4 border border-gray-200 rounded-lg"
+                  >
+                    <div>
+                      <p className="font-medium text-gray-800">
+                        Order #{job._id?.slice(-6)}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {job.pickupAddress?.slice(0, 30)}... →{" "}
+                        {job.dropAddress?.slice(0, 30)}...
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-gray-800">₹{job.fare}</p>
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs ${
+                          job.status === "delivered"
+                            ? "bg-green-100 text-green-800"
+                            : job.status === "pending"
+                            ? "bg-yellow-100 text-yellow-800"
+                            : "bg-blue-100 text-blue-800"
+                        }`}
+                      >
+                        {job.status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-500 mb-4">No active jobs yet</p>
+                <Link
+                  to="/driver/jobs"
+                  className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Find Available Jobs
+                </Link>
+              </div>
+            )}
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
-}
+};
+
+/* ✅ Small Reusable Components */
+const StatCard = ({ icon, title, value, color }) => (
+  <div className="bg-white rounded-lg shadow-md p-6">
+    <div className="flex items-center">
+      <div className={`bg-${color}-100 p-3 rounded-lg`}>
+        <span className={`text-${color}-600 text-xl`}>{icon}</span>
+      </div>
+      <div className="ml-4">
+        <p className="text-sm text-gray-600">{title}</p>
+        <p className="text-2xl font-bold text-gray-800">{value}</p>
+      </div>
+    </div>
+  </div>
+);
+
+const QuickAction = ({ to, bg, hover, emoji, title, desc }) => (
+  <Link
+    to={to}
+    className={`${bg} ${hover} text-white p-6 rounded-lg shadow-md transition-colors flex flex-col items-center text-center`}
+  >
+    <span className="text-3xl mb-3">{emoji}</span>
+    <h3 className="text-xl font-semibold mb-2">{title}</h3>
+    <p className="text-white/70">{desc}</p>
+  </Link>
+);
+
+export default DriverDashboard;
